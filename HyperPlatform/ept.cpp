@@ -633,6 +633,7 @@ _Use_decl_annotations_ static ULONG64 EptpAddressToPteIndex(
 }
 
 // Deal with EPT violation VM-exit.
+// 虚拟化处理技术p426
 _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
   const EptViolationQualification exit_qualification = {
       UtilVmRead(VmcsField::kExitQualification)};

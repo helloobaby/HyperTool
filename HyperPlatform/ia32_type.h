@@ -726,7 +726,7 @@ enum class VmcsField : unsigned __int32 {
   kTscMultiplier = 0x00002032,
   kTscMultiplierHigh = 0x00002033,
   // 64-Bit Read-Only Data Field
-  kGuestPhysicalAddress = 0x00002400,
+  kGuestPhysicalAddress = 0x00002400,//保存由于EPT violation或者EPT misconfiguration故障引起的vm-exit时的GPA
   kGuestPhysicalAddressHigh = 0x00002401,
   // 64-Bit Guest-State Fields
   kVmcsLinkPointer = 0x00002800,
@@ -777,12 +777,12 @@ enum class VmcsField : unsigned __int32 {
   kPleWindow = 0x00004022,
   // 32-Bit Read-Only Data Fields
   kVmInstructionError = 0x00004400,  // See: VM-Instruction Error Numbers
-  kVmExitReason = 0x00004402,
+  kVmExitReason = 0x00004402,//32bit，保存导致vm-exit的原因值,处理器虚拟化技术p248
   kVmExitIntrInfo = 0x00004404,
   kVmExitIntrErrorCode = 0x00004406,
   kIdtVectoringInfoField = 0x00004408,
   kIdtVectoringErrorCode = 0x0000440a,
-  kVmExitInstructionLen = 0x0000440c,
+  kVmExitInstructionLen = 0x0000440c,//若vm-exit由指令引发，记录这条指令的长度
   kVmxInstructionInfo = 0x0000440e,
   // 32-Bit Guest-State Fields
   kGuestEsLimit = 0x00004800,
@@ -820,12 +820,12 @@ enum class VmcsField : unsigned __int32 {
   kCr3TargetValue2 = 0x0000600c,
   kCr3TargetValue3 = 0x0000600e,
   // Natural-Width Read-Only Data Fields
-  kExitQualification = 0x00006400,
+  kExitQualification = 0x00006400,//进一步提供导致vm-exit的明细信息 处理器虚拟化技术p255
   kIoRcx = 0x00006402,
   kIoRsi = 0x00006404,
   kIoRdi = 0x00006406,
   kIoRip = 0x00006408,
-  kGuestLinearAddress = 0x0000640a,
+  kGuestLinearAddress = 0x0000640a,//保存导致vm-eixt的某些事件的线性地址
   // Natural-Width Guest-State Fields
   kGuestCr0 = 0x00006800,
   kGuestCr3 = 0x00006802,
@@ -1647,7 +1647,7 @@ union VmEntryInterruptionInformationField {
   struct {
     ULONG32 vector : 8;              //!< [0:7]
     ULONG32 interruption_type : 3;   //!< [8:10]
-    ULONG32 deliver_error_code : 1;  //!< [11]
+    ULONG32 deliver_error_code : 1;  //!< [11]     决定是否要给一个错误码压入堆栈
     ULONG32 reserved : 19;           //!< [12:30]
     ULONG32 valid : 1;               //!< [31]
   } fields;

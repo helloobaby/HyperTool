@@ -347,7 +347,15 @@ _Use_decl_annotations_ static NTSTATUS VmpStartVm(void *context) {
   HYPERPLATFORM_LOG_INFO("Initializing VMX for the processor %lu.",
                          KeGetCurrentProcessorNumberEx(nullptr));
   const auto ok = AsmInitializeVm(VmpInitializeVm, context);
+
+  //
+  //因为我们在vmm.cpp里把相应的HyperPlatform存在标识抹去了，这里就不能作为判断依据了
+  //
+  #if 0
   NT_ASSERT(VmpIsHyperPlatformInstalled() == ok);
+  #endif
+
+
   if (!ok) {
     return STATUS_UNSUCCESSFUL;
   }

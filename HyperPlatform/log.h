@@ -8,7 +8,10 @@
 #ifndef HYPERPLATFORM_LOG_H_
 #define HYPERPLATFORM_LOG_H_
 
+#define _NO_CRT_STDIO_INLINE
+#define _CRT_SECURE_NO_WARNINGS
 #include <ntddk.h>
+#include <cstdio>
 
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -180,5 +183,22 @@ NTSTATUS LogpPrint(_In_ ULONG level, _In_z_ const char *function_name,
 //
 
 }  // extern "C"
+
+#if 0
+inline ULONG Log(const char *format, ...) {
+  char buffer[256];
+
+  va_list ap;
+  __va_start(&ap, format);
+  vsprintf(buffer, format, ap);
+
+  return DbgPrintEx(DPFLTR_DEFAULT_ID, DPFLTR_ERROR_LEVEL, buffer);
+}
+#endif
+
+
+
+
+
 
 #endif  // HYPERPLATFORM_LOG_H_

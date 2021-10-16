@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2019, Satoshi Tanda. All rights reserved.
+﻿// Copyright (c) 2015-2019, Satoshi Tanda. All rights reserved.
 // Use of this source code is governed by a MIT-style license that can be
 // found in the LICENSE file.
 
@@ -15,6 +15,10 @@
 #include "performance.h"
 
 extern "C" {
+
+NTSYSAPI const char *PsGetProcessImageFileName(PEPROCESS Process);
+
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // macro utilities
@@ -188,9 +192,53 @@ _Use_decl_annotations_ bool __stdcall VmmVmExitHandler(VmmInitialStack *stack) {
   //
   const auto guest_irql = KeGetCurrentIrql();
   const auto guest_cr8 = IsX64() ? __readcr8() : 0;
+
+  //
+  //禁止线程切换，屏蔽<=2irql的中断请求，同样不允许换页
+  //这个时候很多API都是无法调用的
+  //
   if (guest_irql < DISPATCH_LEVEL) {
     KeRaiseIrqlToDpcLevel();
   }
+
+  /**
+  * 确定是哪个进程vm-exit的方法
+  * 
+  * IoGetCurrentProcess是根据GS:CurrentThread，但是gs是在guest-state里的
+  * 当初初始化gs的时候，是在system进程readgs初始的
+  * vm-exit的时候，host cr3和guest cr3变了，要注意地址的映射
+  *
+  * Q:kprcb在system进程和其他进程的内核cr3下是同样的地址吗？
+  * A:是一样的，同样的va在不同的pxe下对应的同一个物理页面，也就是说我们可以保证vm-exit前后gs指向的都是同一个物理页面
+  * 然后我们可以通过IoGetCurrentProcess得到PEPROCESS，这些内核对象也应该是在不同pxe下对应相同物理页面的。那么我们
+  * 不就可以引用ImageProcessName了？
+  *
+  * https://bbs.pediy.com/thread-221825.htm
+  * 为什么需要读guest gs？ 为什么需要切cr3？
+  *
+  * 在HYPERPLATFORM_LOG_INFO的实现中，直接用的PsGetProcessImageFileName找当前进程
+  *
+  * 在作者的文档中4.4.4节，推荐在读写内存的时候换guest的cr3
+  *
+  *
+  * https://github.com/tandasat/HyperPlatform/issues/1
+  * 也就是说如果在虚拟机中rdmsr不支持的msr不会#gp，在物理机上会#gp
+  *
+  * https://github.com/tandasat/HyperPlatform/issues/3
+  * API：KeGetEffectiveIrql在VMM模式下始终返回HIGH_LEVEL？
+  *
+  * 
+  */
+
+
+  //
+  //打印出vm-exit的程序，在hyperplatform这种虚拟机下这样没什么问题，在正规虚拟机下比如vbox，vmware肯定不行
+  //
+  #if 0
+  PEPROCESS Process = IoGetCurrentProcess();
+  const char *ImageFileName = PsGetProcessImageFileName(Process);
+  HYPERPLATFORM_LOG_INFO("vm-exit process is %s", ImageFileName);
+  #endif
 
   // Capture the current guest state
   GuestContext guest_context = {stack,
@@ -205,6 +253,10 @@ _Use_decl_annotations_ bool __stdcall VmmVmExitHandler(VmmInitialStack *stack) {
   // guest. The rest of trap frame fields are entirely unused. Note that until
   // this code is executed, Windbg will display incorrect stack trace based off
   // the stale, old values.
+  //
+  // 所有由指令造成的vm-exit都是fault类型,也就是说kGuestRip一定指向造成vm-exit的地址，
+  // kVmExitInstructionLen为这条指令的长度
+  //
   stack->trap_frame.sp = guest_context.gp_regs->sp;
   stack->trap_frame.ip =
       guest_context.ip + UtilVmRead(VmcsField::kVmExitInstructionLen);
@@ -328,7 +380,7 @@ _Use_decl_annotations_ static void VmmpHandleVmExit(
       VmmpHandleXsetbv(guest_context);
       break;
     default:
-      VmmpHandleUnexpectedExit(guest_context);
+      VmmpHandleUnexpectedExit(guest_context); 
       /* UNREACHABLE */
   }
 }
@@ -346,6 +398,9 @@ _Use_decl_annotations_ static void VmmpHandleTripleFault(
 _Use_decl_annotations_ static void VmmpHandleUnexpectedExit(
     GuestContext *guest_context) {
   VmmpDumpGuestState();
+  //
+  //未被接管的vm-exit
+  //
   const auto qualification = UtilVmRead(VmcsField::kExitQualification);
   HYPERPLATFORM_COMMON_BUG_CHECK(HyperPlatformBugCheck::kUnexpectedVmExit,
                                  reinterpret_cast<ULONG_PTR>(guest_context),
@@ -427,8 +482,18 @@ _Use_decl_annotations_ static void VmmpHandleCpuid(
   const auto function_id = static_cast<int>(guest_context->gp_regs->ax);
   const auto sub_function_id = static_cast<int>(guest_context->gp_regs->cx);
 
+  //VMM替VM执行一遍cpuid，并返回相应结果
   __cpuidex(reinterpret_cast<int *>(cpu_info), function_id, sub_function_id);
 
+  //
+  //用虚拟机管理员位来提示VMM存在
+  //用硬件保留的id号来返回vmm标识
+  //
+
+  //
+  //这里先选择不做处理，如果有需要伪造返回数据就可以再改
+  //
+#if 0
   if (function_id == 1) {
     // Present existence of a hypervisor using the HypervisorPresent bit
     CpuFeaturesEcx cpu_features = {static_cast<ULONG32>(cpu_info[2])};
@@ -438,6 +503,7 @@ _Use_decl_annotations_ static void VmmpHandleCpuid(
     // Leave signature of HyperPlatform onto EAX
     cpu_info[0] = 'PpyH';
   }
+#endif
 
   guest_context->gp_regs->ax = cpu_info[0];
   guest_context->gp_regs->bx = cpu_info[1];
@@ -542,7 +608,7 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
                      VmcsField::kHostIa32PerfGlobalCtrlHigh);
 
   LARGE_INTEGER msr_value = {};
-  if (read_access) {
+  if (read_access) {//读msr
     if (transfer_to_vmcs) {
       if (is_64bit_vmcs) {
         msr_value.QuadPart = UtilVmRead64(vmcs_field);
@@ -550,11 +616,13 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
         msr_value.QuadPart = UtilVmRead(vmcs_field);
       }
     } else {
+      //如果这个msr不受支持的话，应该注射一个#GP异常
+      //
       msr_value.QuadPart = UtilReadMsr64(msr);
     }
     guest_context->gp_regs->ax = msr_value.LowPart;
     guest_context->gp_regs->dx = msr_value.HighPart;
-  } else {
+  } else {//写msr
     msr_value.LowPart = static_cast<ULONG>(guest_context->gp_regs->ax);
     msr_value.HighPart = static_cast<ULONG>(guest_context->gp_regs->dx);
     if (transfer_to_vmcs) {
@@ -1224,7 +1292,7 @@ _Use_decl_annotations_ static void VmmpHandleVmCall(
       // Unloading requested. This VMCALL is allowed to execute only from CPL=0
       if (VmmpGetGuestCpl() == 0) {
         VmmpHandleVmCallTermination(guest_context, context);
-      } else {
+      } else {//处理三环的VMCALL，注入一个异常给guest执行
         VmmpIndicateUnsuccessfulVmcall(guest_context);
       }
       break;
@@ -1270,6 +1338,7 @@ _Use_decl_annotations_ static void VmmpHandleEptViolation(
 }
 
 // EXIT_REASON_EPT_MISCONFIG
+// 处理器虚拟化技术p427
 _Use_decl_annotations_ static void VmmpHandleEptMisconfig(
     GuestContext *guest_context) {
   UNREFERENCED_PARAMETER(guest_context);
@@ -1373,6 +1442,8 @@ _Use_decl_annotations_ static ULONG_PTR *VmmpSelectRegister(
 // Advances guest's IP to the next instruction
 _Use_decl_annotations_ static void VmmpAdjustGuestInstructionPointer(
     GuestContext *guest_context) {
+
+  //让guest执行下一条指令
   const auto exit_inst_length = UtilVmRead(VmcsField::kVmExitInstructionLen);
   UtilVmWrite(VmcsField::kGuestRip, guest_context->ip + exit_inst_length);
 
