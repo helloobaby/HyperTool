@@ -1696,6 +1696,46 @@ constexpr unsigned int operator<<(_In_ unsigned int lhs,
   return (lhs << static_cast<unsigned int>(rhs));
 }
 
+//处理器虚拟化技术P235
+union pending_debug_exception
+{
+    ULONG64 all;
+    struct
+    {
+        ULONG64 B0 : 1;
+        ULONG64 B1 : 1;
+        ULONG64 B2 : 1;
+        ULONG64 B3 : 1;
+        ULONG64 reserved1 : 8;
+        ULONG64 enable_breakpoint : 1;
+        ULONG64 reserved2 : 1;
+        ULONG64 BS : 1;
+        ULONG64 reserved4 : 49;
+    }fields;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #pragma clang diagnostic pop
 
 #endif  // HYPERPLATFORM_IA32_TYPE_H_

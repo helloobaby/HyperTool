@@ -14,6 +14,7 @@
 #include "util.h"
 #include "performance.h"
 
+
 extern "C" {
 
 NTSYSAPI const char *PsGetProcessImageFileName(PEPROCESS Process);
@@ -504,6 +505,12 @@ _Use_decl_annotations_ static void VmmpHandleCpuid(
     cpu_info[0] = 'PpyH';
   }
 #endif
+  if (function_id == 1) {
+      // Present existence of a hypervisor using the HypervisorPresent bit
+      CpuFeaturesEcx cpu_features = { static_cast<ULONG32>(cpu_info[2]) };
+      cpu_features.fields.not_used = false;//指示虚拟机不存在
+      cpu_info[2] = static_cast<int>(cpu_features.all);
+  }
 
   guest_context->gp_regs->ax = cpu_info[0];
   guest_context->gp_regs->bx = cpu_info[1];
@@ -566,11 +573,55 @@ _Use_decl_annotations_ static void VmmpHandleMsrWriteAccess(
 }
 
 // RDMSR and WRMSR
+/*
+Code that accesses a model-specific MSR and that is executed on a processor that does not support that MSR will
+generate an exception.
+ 
+MSR address range between 40000000H - 400000FFH is marked as a specially reserved range. All existing and
+future processors will not implement any features using any MSR in this range.
+*/
 _Use_decl_annotations_ static void VmmpHandleMsrAccess(
     GuestContext *guest_context, bool read_access) {
   // Apply it for VMCS instead of a real MSR if a specified MSR is either of
   // them.
   const auto msr = static_cast<Msr>(guest_context->gp_regs->cx);
+
+  bool is_vaild_msr = false;
+  //
+  //对不支持的msr注入#gp
+  //
+
+  if (guest_context->gp_regs->cx <= 0x1FFF)
+      is_vaild_msr = true;
+  else if ((guest_context->gp_regs->cx >= 0xC0000000) && (guest_context->gp_regs->cx <= 0xC0001FFF))
+      is_vaild_msr = true;
+
+
+  if (!is_vaild_msr
+#if 1 //在vmware上测试要加上，有个叫PpmIdleGuestExecute会rdmsr 0x400000F0u
+      && (guest_context->gp_regs->cx != 0x400000f0)
+#endif
+      )
+  {
+      /*
+      * 在vmware下，不支持的msr，会返回未定义的值，而不会蓝屏
+      * 真实机子下这样的话不try-catch是要蓝屏的
+      */
+#if 1
+      VmmpInjectInterruption(
+          InterruptionType::kHardwareException,
+          InterruptionVector::kGeneralProtectionException,
+          true,
+          0x6A);
+
+      VmmpAdjustGuestInstructionPointer(guest_context);
+      return;
+#endif 
+  }
+
+  //
+  //对正常的msr提供服务
+  //
 
   bool transfer_to_vmcs = false;
   VmcsField vmcs_field = {};
@@ -608,7 +659,7 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
                      VmcsField::kHostIa32PerfGlobalCtrlHigh);
 
   LARGE_INTEGER msr_value = {};
-  if (read_access) {//读msr
+  if (read_access) {
     if (transfer_to_vmcs) {
       if (is_64bit_vmcs) {
         msr_value.QuadPart = UtilVmRead64(vmcs_field);
@@ -616,8 +667,6 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
         msr_value.QuadPart = UtilVmRead(vmcs_field);
       }
     } else {
-      //如果这个msr不受支持的话，应该注射一个#GP异常
-      //
       msr_value.QuadPart = UtilReadMsr64(msr);
     }
     guest_context->gp_regs->ax = msr_value.LowPart;
@@ -1447,12 +1496,25 @@ _Use_decl_annotations_ static void VmmpAdjustGuestInstructionPointer(
   const auto exit_inst_length = UtilVmRead(VmcsField::kVmExitInstructionLen);
   UtilVmWrite(VmcsField::kGuestRip, guest_context->ip + exit_inst_length);
 
+  //https://howtohypervise.blogspot.com/2019/01/a-common-missight-in-most-hypervisors.html
+  //常规事件注入？ 悬挂异常？
   // Inject #DB if TF is set
+#if 1
   if (guest_context->flag_reg.fields.tf) {
+#if 1
     VmmpInjectInterruption(InterruptionType::kHardwareException,
                            InterruptionVector::kDebugException, false, 0);
     UtilVmWrite(VmcsField::kVmEntryInstructionLen, exit_inst_length);
+#endif
+#if 0 
+    //
+    //测试 pendingException为0
+    //
+    auto pendingException = (pending_debug_exception)UtilVmRead64(VmcsField::kGuestPendingDbgExceptions);
+    HYPERPLATFORM_COMMON_DBG_BREAK();
+#endif
   }
+#endif 
 }
 
 // Handle VMRESUME or VMXOFF failure. Fatal error.
@@ -1551,6 +1613,7 @@ _Use_decl_annotations_ static void VmmpHandleVmCallTermination(
   return ar.fields.dpl;
 }
 
+//处理器虚拟化技术p214
 // Injects interruption to a guest
 _Use_decl_annotations_ static void VmmpInjectInterruption(
     InterruptionType interruption_type, InterruptionVector vector,
