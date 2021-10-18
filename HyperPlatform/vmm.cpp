@@ -14,6 +14,18 @@
 #include "util.h"
 #include "performance.h"
 
+#define MAX_SUPPORT_PROCESS 100
+
+//UCHAR ImageFileName[ 16 ];
+const char rdtsc_trick_process[MAX_SUPPORT_PROCESS][16] =
+{
+    "guloader"
+};
+
+//
+//如果此驱动需要在vmware中测试，定义此宏
+//
+#define VMWARE
 
 extern "C" {
 
@@ -82,6 +94,11 @@ struct VmExitHistory {
 //
 // prototypes
 //
+
+//
+//获得本次vm-exit的进程名
+//
+const char* GetVmExitProcess();
 
 bool __stdcall VmmVmExitHandler(_Inout_ VmmInitialStack *stack);
 
@@ -181,6 +198,13 @@ static VmExitHistory g_vmmp_vm_exit_history[kVmmpNumberOfProcessors]
 //
 // implementations
 //
+
+const char* GetVmExitProcess()
+{
+    return PsGetProcessImageFileName(IoGetCurrentProcess());
+}
+
+
 
 // A high level VMX handler called from AsmVmExitHandler().
 // Return true for vmresume, or return false for vmxoff.
@@ -505,12 +529,34 @@ _Use_decl_annotations_ static void VmmpHandleCpuid(
     cpu_info[0] = 'PpyH';
   }
 #endif
+  //
+  //https://www.deepinstinct.com/blog/malware-evasion-techniques-part-2-anti-vm-blog
+  //解决cpuid的示例1示例2
+  //
+
+  if (function_id == 0) {
+      guest_context->gp_regs->ax = 16;
+      guest_context->gp_regs->bx = 0x756E6547;
+      guest_context->gp_regs->cx = 0x6C65746E;
+      guest_context->gp_regs->dx = 0x49656E69;
+
+      VmmpAdjustGuestInstructionPointer(guest_context);
+      return;
+  }
+  
+  //cpuid.1.ecx="0-:--:--:--:--:--:--:--"
   if (function_id == 1) {
       // Present existence of a hypervisor using the HypervisorPresent bit
       CpuFeaturesEcx cpu_features = { static_cast<ULONG32>(cpu_info[2]) };
       cpu_features.fields.not_used = false;//指示虚拟机不存在
       cpu_info[2] = static_cast<int>(cpu_features.all);
   }
+
+  //
+  //VMX文件中加入，替换默认的cpuid 40000000返回值
+  //cpuid.40000000.ecx=”0000:0000:0000:0000:0000:0000:0000:0000”
+  //cpuid.40000000.edx = ”0000:0000 : 0000 : 0000 : 0000 : 0000 : 0000 : 0000”
+  //
 
   guest_context->gp_regs->ax = cpu_info[0];
   guest_context->gp_regs->bx = cpu_info[1];
@@ -521,11 +567,29 @@ _Use_decl_annotations_ static void VmmpHandleCpuid(
 }
 
 // RDTSC
+// 一般来说hypervisor都不会让rdtsc vm-exit
 _Use_decl_annotations_ static void VmmpHandleRdtsc(
     GuestContext *guest_context) {
   HYPERPLATFORM_PERFORMANCE_MEASURE_THIS_SCOPE();
-  ULARGE_INTEGER tsc = {};
-  tsc.QuadPart = __rdtsc();
+
+
+    ULARGE_INTEGER tsc = {};
+    tsc.QuadPart = __rdtsc();
+
+
+
+  bool is_fake_rdtsc = false;
+  const char* current_vm_exit_process = GetVmExitProcess();
+
+  for (auto process_name : rdtsc_trick_process)
+  {
+      if (strstr(current_vm_exit_process, process_name))
+          is_fake_rdtsc = true;
+  }
+
+
+
+
   guest_context->gp_regs->dx = tsc.HighPart;
   guest_context->gp_regs->ax = tsc.LowPart;
 
@@ -598,7 +662,7 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
 
 
   if (!is_vaild_msr
-#if 1 //在vmware上测试要加上，有个叫PpmIdleGuestExecute会rdmsr 0x400000F0u
+#ifdef VMWARE //在vmware上测试要加上，有个叫PpmIdleGuestExecute会rdmsr 0x400000F0u
       && (guest_context->gp_regs->cx != 0x400000f0)
 #endif
       )

@@ -18,6 +18,7 @@
 #include "vm.h"
 #include "performance.h"
 
+ 
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -168,9 +169,9 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
     PDRIVER_OBJECT driver_object) {
   UNREFERENCED_PARAMETER(driver_object);
   PAGED_CODE()
-
+#if 0
   HYPERPLATFORM_COMMON_DBG_BREAK();
-
+#endif
   VmTermination();
   HotplugCallbackTermination();
   PowerCallbackTermination();

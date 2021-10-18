@@ -638,6 +638,7 @@ _Use_decl_annotations_ static bool VmpSetupVmcs(
                             vm_pinctl_requested.all)};
 
   VmxProcessorBasedControls vm_procctl_requested = {};
+  vm_procctl_requested.fields.rdtsc_exiting = false;//接管rdtsc?
   vm_procctl_requested.fields.cr3_load_exiting = true; //mov cr3,x vm-exit
   vm_procctl_requested.fields.mov_dr_exiting = true; //读写dr寄存器 vm-exit
   vm_procctl_requested.fields.use_io_bitmaps = true; //默认使用io bitmap
