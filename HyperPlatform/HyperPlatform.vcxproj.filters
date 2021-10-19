@@ -17,6 +17,9 @@
       <UniqueIdentifier>{8E41214B-6785-4CFE-B992-037D68949A14}</UniqueIdentifier>
       <Extensions>inf;inv;inx;mof;mc;</Extensions>
     </Filter>
+    <Filter Include="hde">
+      <UniqueIdentifier>{d1e28be2-d0d8-4994-b4cd-ac6575298766}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="HyperPlatform.inf">
@@ -55,6 +58,21 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="hotplug_callback.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="systemcall.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kernel-hook\khook\khook\hk.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="kernel-hook\khook\hde\hde32.cpp">
+      <Filter>hde</Filter>
+    </ClCompile>
+    <ClCompile Include="kernel-hook\khook\hde\hde64.cpp">
+      <Filter>hde</Filter>
+    </ClCompile>
+    <ClCompile Include="include\exclusivity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -104,6 +122,36 @@
     <ClInclude Include="power_callback.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="systemcall.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="KernelBase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kernel-hook\khook\khook\hk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="kernel-hook\khook\hde\hde.h">
+      <Filter>hde</Filter>
+    </ClInclude>
+    <ClInclude Include="kernel-hook\khook\hde\hde_stdint.h">
+      <Filter>hde</Filter>
+    </ClInclude>
+    <ClInclude Include="kernel-hook\khook\hde\hde32.h">
+      <Filter>hde</Filter>
+    </ClInclude>
+    <ClInclude Include="kernel-hook\khook\hde\hde64.h">
+      <Filter>hde</Filter>
+    </ClInclude>
+    <ClInclude Include="kernel-hook\khook\hde\table32.h">
+      <Filter>hde</Filter>
+    </ClInclude>
+    <ClInclude Include="kernel-hook\khook\hde\table64.h">
+      <Filter>hde</Filter>
+    </ClInclude>
+    <ClInclude Include="include\exclusivity.h">
+      <Filter>hde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <MASM Include="Arch\x64\x64.asm">
@@ -115,5 +163,16 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="HyperPlatform.ruleset" />
+    <None Include="kernel-hook\khook\hde\LICENSE">
+      <Filter>hde</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="system_call_handler.asm">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="KernelBase.asm">
+      <Filter>Source Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

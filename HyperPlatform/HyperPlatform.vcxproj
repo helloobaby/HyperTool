@@ -68,10 +68,15 @@
     <ClCompile Include="ept.cpp" />
     <ClCompile Include="global_object.cpp" />
     <ClCompile Include="hotplug_callback.cpp" />
+    <ClCompile Include="include\exclusivity.cpp" />
+    <ClCompile Include="kernel-hook\khook\hde\hde32.cpp" />
+    <ClCompile Include="kernel-hook\khook\hde\hde64.cpp" />
+    <ClCompile Include="kernel-hook\khook\khook\hk.c" />
     <ClCompile Include="kernel_stl.cpp" />
     <ClCompile Include="log.cpp" />
     <ClCompile Include="performance.cpp" />
     <ClCompile Include="power_callback.cpp" />
+    <ClCompile Include="systemcall.cpp" />
     <ClCompile Include="util.cpp" />
     <ClCompile Include="vm.cpp" />
     <ClCompile Include="vmm.cpp" />
@@ -84,10 +89,20 @@
     <ClInclude Include="global_object.h" />
     <ClInclude Include="hotplug_callback.h" />
     <ClInclude Include="ia32_type.h" />
+    <ClInclude Include="include\exclusivity.h" />
+    <ClInclude Include="kernel-hook\khook\hde\hde.h" />
+    <ClInclude Include="kernel-hook\khook\hde\hde32.h" />
+    <ClInclude Include="kernel-hook\khook\hde\hde64.h" />
+    <ClInclude Include="kernel-hook\khook\hde\hde_stdint.h" />
+    <ClInclude Include="kernel-hook\khook\hde\table32.h" />
+    <ClInclude Include="kernel-hook\khook\hde\table64.h" />
+    <ClInclude Include="kernel-hook\khook\khook\hk.h" />
+    <ClInclude Include="KernelBase.h" />
     <ClInclude Include="log.h" />
     <ClInclude Include="performance.h" />
     <ClInclude Include="perf_counter.h" />
     <ClInclude Include="power_callback.h" />
+    <ClInclude Include="systemcall.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="util_page_constants.h" />
     <ClInclude Include="vm.h" />
@@ -102,12 +117,23 @@
       <ExcludedFromBuild Condition="'$(Platform)'=='x64'">true</ExcludedFromBuild>
       <UseSafeExceptionHandlers Condition="'$(Platform)'=='Win32'">true</UseSafeExceptionHandlers>
     </MASM>
+    <CustomBuild Include="system_call_handler.asm">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64 /Fo $(IntDir)%(fileName).obj /c %(fileName).asm</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(fileName).obj;%(Outputs)</Outputs>
+    </CustomBuild>
+    <CustomBuild Include="KernelBase.asm">
+      <FileType>Document</FileType>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ml64 /Fo $(IntDir)%(fileName).obj /c %(fileName).asm</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(fileName).obj;%(Outputs)</Outputs>
+    </CustomBuild>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="HyperPlatform.inf" />
   </ItemGroup>
   <ItemGroup>
     <None Include="HyperPlatform.ruleset" />
+    <None Include="kernel-hook\khook\hde\LICENSE" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

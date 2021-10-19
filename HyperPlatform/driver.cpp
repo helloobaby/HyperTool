@@ -18,6 +18,13 @@
 #include "vm.h"
 #include "performance.h"
 
+
+//
+//实现于systemcall.cpp
+//
+extern NTSTATUS InitSystemVar();
+extern void DoSystemCallHook();
+
  
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -75,6 +82,22 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
   auto status = STATUS_UNSUCCESSFUL;
   driver_object->DriverUnload = DriverpDriverUnload;
+
+  status = InitSystemVar();
+  if (!NT_SUCCESS(status))
+  {
+      return STATUS_UNSUCCESSFUL;
+  }
+
+  DoSystemCallHook();
+
+
+  //
+  //便于测试
+  //
+#if 1
+  return STATUS_SUCCESS;
+#endif
 
 #if 0
   HYPERPLATFORM_COMMON_DBG_BREAK();
@@ -161,6 +184,13 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   }
 
   HYPERPLATFORM_LOG_INFO("The VMM has been installed.");
+
+  
+
+
+
+
+
   return status;
 }
 
