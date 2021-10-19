@@ -8,7 +8,3 @@ This repositority is used to learn virtualization.
 
 
 
-
-Other info:
-
-https://secret.club/2020/04/13/how-anti-cheats-detect-system-emulation.html
