@@ -94,6 +94,15 @@ DetourOtherKiSystemServiceCopyEnd endp
 
 DetourKiSystemServiceStart proc
 	
+
+		SAVE
+	sub rsp,28h
+	mov rcx,rsp
+	mov edx,eax
+	call SystemCallHandler
+	add rsp,28h
+	RESTOR
+
 	jmp qword ptr[OriKiSystemServiceStart]
 
 DetourKiSystemServiceStart endp

@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2019, Satoshi Tanda. All rights reserved.
+﻿// Copyright (c) 2015-2019, Satoshi Tanda. All rights reserved.
 // Use of this source code is governed by a MIT-style license that can be
 // found in the LICENSE file.
 
@@ -11,6 +11,8 @@
 #include "log.h"
 #include "util.h"
 #include "performance.h"
+
+extern FakePage SystemFakePage;
 
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -432,9 +434,9 @@ _Use_decl_annotations_ EptData *EptInitialization() {
   for (auto run_index = 0ul; run_index < pm_ranges->number_of_runs;
        ++run_index) {
     const auto run = &pm_ranges->run[run_index];
-    const auto base_addr = run->base_page * PAGE_SIZE;
-    for (auto page_index = 0ull; page_index < run->page_count; ++page_index) {
-      const auto indexed_addr = base_addr + page_index * PAGE_SIZE;
+    const auto base_addr = run->base_page * PAGE_SIZE;//guest连续物理页面的起始地址
+    for (auto page_index = 0ull; page_index < run->page_count; ++page_index) {//这个起始地址开始的page_count页面
+      const auto indexed_addr = base_addr + page_index * PAGE_SIZE;//单个物理页面的起始地址
       const auto ept_pt_entry =
           EptpConstructTables(ept_pml4, 4, indexed_addr, nullptr);
       if (!ept_pt_entry) {
@@ -484,6 +486,10 @@ _Use_decl_annotations_ EptData *EptInitialization() {
   ept_data->ept_pml4 = ept_pml4;
   ept_data->preallocated_entries = preallocated_entries;
   ept_data->preallocated_entries_count = 0;
+
+  //此时基本ept初始化完成，我们需要隐藏页面的话就可以篡改他的原始ept设置
+  FixOriginEpt(ept_data);
+
   return ept_data;
 }
 
@@ -555,6 +561,7 @@ _Use_decl_annotations_ static EptCommonEntry *EptpConstructTables(
 }
 
 // Return a new EPT entry either by creating new one or from pre-allocated ones
+//原作者用这个备用Ept Entry估计是为了防止在vm-exit的时候分配内存
 _Use_decl_annotations_ static EptCommonEntry *EptpAllocateEptEntry(
     EptData *ept_data) {
   if (ept_data) {
@@ -574,6 +581,7 @@ EptpAllocateEptEntryFromPreAllocated(EptData *ept_data) {
         HyperPlatformBugCheck::kExhaustedPreallocatedEntries, count,
         reinterpret_cast<ULONG_PTR>(ept_data), 0);
   }
+  //往后挪
   return ept_data->preallocated_entries[count - 1];
 }
 
@@ -598,7 +606,7 @@ _Use_decl_annotations_ static void EptpInitTableEntry(
   entry->fields.write_access = true;
   entry->fields.execute_access = true;
   entry->fields.physial_address = UtilPfnFromPa(physical_address);
-  if (table_level == 1) {
+  if (table_level == 1) {//EPT PTE多了个memory type域
     entry->fields.memory_type =
         static_cast<ULONG64>(EptpGetMemoryType(physical_address));
   }
@@ -643,6 +651,25 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
       exit_qualification.fields.valid_guest_linear_address
           ? UtilVmRead(VmcsField::kGuestLinearAddress)
           : 0);
+
+  //
+  //对我们需要隐藏的内存做特殊处理
+  //
+
+  if ((ULONG_PTR)fault_pa >= SystemFakePage.GuestPA.QuadPart && 
+      fault_pa <= SystemFakePage.GuestPA.QuadPart + 0x1000)
+  {
+      DbgBreakPoint();
+      const auto ept_entry = EptGetEptPtEntry(ept_data, fault_pa);
+      //换物理页,换完之后读写权限要加上，不然客户机这个核心一直读就vm-exit然死循环了
+      ept_entry->fields.read_access = 1;
+      ept_entry->fields.write_access = 1;
+      ept_entry->fields.physial_address = (SystemFakePage.PageContentPA.QuadPart >> 12);
+
+      UtilInveptGlobal();
+      return;
+  }
+
 
   if (exit_qualification.fields.ept_readable ||
       exit_qualification.fields.ept_writeable ||
@@ -798,6 +825,16 @@ _Use_decl_annotations_ static void EptpDestructTables(EptCommonEntry *table,
     }
   }
   ExFreePoolWithTag(table, kHyperPlatformCommonPoolTag);
+}
+
+void FixOriginEpt(EptData* const EptData)
+{
+#if 0
+    DbgBreakPoint();
+#endif
+    auto ept_entry = EptGetEptPtEntry(EptData, SystemFakePage.GuestPA.QuadPart);
+    ept_entry->fields.read_access = 0;
+    ept_entry->fields.write_access = 0;
 }
 
 }  // extern "C"

@@ -3,6 +3,7 @@
 #include"ia32_type.h"
 #include"log.h"
 #include"include/exclusivity.h"
+#include"ept.h"
 
 extern "C"
 {
@@ -12,13 +13,11 @@ extern "C" void DetourKiSystemServiceCopyEnd();
 extern "C" void DetourOtherKiSystemServiceCopyEnd();
 extern "C" void DetourKiSystemServiceCopyStart();
 extern "C" void DetourKiSystemServiceStart();
+NTSYSAPI const char* PsGetProcessImageFileName(PEPROCESS Process);
+
 }
 
-void ZwFlushInstructionCache();
-
-using ZwFlushInstructionCacheType = decltype(&ZwFlushInstructionCache);
-ZwFlushInstructionCacheType aZwFlushInstructionCache = NULL;
-
+FakePage SystemFakePage;
 
 ULONG_PTR
 fulsh_insn_cache(
@@ -28,8 +27,13 @@ fulsh_insn_cache(
 #if 1
 	Log("flush insn cache!\n");
 #endif
-	aZwFlushInstructionCache();
+	//aZwFlushInstructionCache();
 	return true;
+}
+
+const char* GetSyscallProcess()
+{
+	return PsGetProcessImageFileName(IoGetCurrentProcess());
 }
 
 NTSTATUS InitSystemVar()
@@ -51,6 +55,9 @@ NTSTATUS InitSystemVar()
 	//KiSystemServiceCopyStart = OffsetKiSystemServiceCopyStart + KernelBase;
 	KiSystemServiceStart = OffsetKiSystemServiceStart + KernelBase;
 
+	aSYSTEM_SERVICE_DESCRIPTOR_TABLE = 
+	(SYSTEM_SERVICE_DESCRIPTOR_TABLE*)(OffsetKeServiceDescriptorTable + KernelBase);
+
 #ifdef DBG
 	Log("KiSystemCall64Shadow at %llx\n", KiSystemCall64Shadow);
 #endif // DEBUG
@@ -60,13 +67,19 @@ NTSTATUS InitSystemVar()
 
 	KiSystemCall64ShadowCommon = KiSystemCall64Shadow + 0x2D;
 
+	SystemFakePage.GuestVA = (PVOID)((KiSystemServiceStart >>12) << 12);
+	SystemFakePage.PageContent = ExAllocatePoolWithTag(NonPagedPool, PAGE_SIZE, 'a');
+	if (!SystemFakePage.PageContent)
+		return STATUS_UNSUCCESSFUL;
+	memcpy(SystemFakePage.PageContent, SystemFakePage.GuestVA,PAGE_SIZE);
+	SystemFakePage.GuestPA = MmGetPhysicalAddress(SystemFakePage.GuestVA);
+	SystemFakePage.PageContentPA = MmGetPhysicalAddress(SystemFakePage.PageContent);
+
 	return STATUS_SUCCESS;
 }
 
 void DoSystemCallHook()
 {
-
-	aZwFlushInstructionCache = (ZwFlushInstructionCacheType)(KernelBase + OffsetZwFlushInstructionCache);
 
 #if 0 //开启了KPTI之后这个不行了，因为用户进程并不会有你的代码的映射，更加执行不了
 	UtilWriteMsr64(Msr::kIa32Lstar, (ULONG64)DetourKiSystemCall64Shadow);
@@ -118,21 +131,49 @@ void DoSystemCallHook()
 		(PVOID)PtrKiSystemServiceStart,
 		&OriKiSystemServiceStart);
 	ExclReleaseExclusivity(exclusivity);
-
-
-
-
-
-
-
-
-
-
-
-
 }
 
-void SystemCallHandler(ULONG64 ssdt_func_index)
+//只用于SSDT，不适用于ShadowSSDT
+PVOID GetSSDTEntry(IN ULONG index)
 {
-	Log("hello world\n");
+	ULONG size = 0;
+	PSYSTEM_SERVICE_DESCRIPTOR_TABLE pSSDT = aSYSTEM_SERVICE_DESCRIPTOR_TABLE;
+	PVOID pBase = (PVOID)KernelBase;
+
+	if (pSSDT && pBase)
+	{
+		// Index range check 在shadowssdt里的话返回0
+		if (index > pSSDT->NumberOfServices)
+			return NULL;
+
+		return (PUCHAR)pSSDT->ServiceTableBase + (((PLONG)pSSDT->ServiceTableBase)[index] >> 4);
+	}
+
+	return NULL;
+}
+
+void InitUserSystemCallHandler(decltype(&SystemCallHandler) UserHandler)
+{
+	UserSystemCallHandler = UserHandler;
+}
+
+void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
+{
+
+#if 1
+	//用来记录拦截了多少次系统调用，方便debug，只有第一次的时候会输出
+	static ULONG64 SysCallCount = 0;
+	if (!SysCallCount) {
+		Log("[SysCallCount]at %p\n", &SysCallCount);
+		Log("[SYSCALL]%s\nIndex %x\nTarget %llx\n", GetSyscallProcess(), SSDT_INDEX, GetSSDTEntry(SSDT_INDEX));
+	}
+	SysCallCount++;
+#endif
+
+	//然后应该调用用户给的处理函数，如果没有提供，则使用默认的
+
+	if (UserSystemCallHandler)
+	{
+		UserSystemCallHandler(TrapFrame, SSDT_INDEX);
+	}
 }

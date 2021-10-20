@@ -95,7 +95,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   //
   //±„”⁄≤‚ ‘
   //
-#if 1
+#if 0
   return STATUS_SUCCESS;
 #endif
 
