@@ -1,8 +1,4 @@
 extern SystemCallHandler:proc
-extern KiSystemCall64ShadowCommon:proc 
-;extern OriKiSystemServiceCopyEnd:proc
-;extern OriKiSystemServiceCopyStart:proc
-;extern OriOtherKiSystemServiceCopyEnd:proc
 extern OriKiSystemServiceStart:proc
 
 .code
@@ -42,55 +38,6 @@ RESTOR macro
 	pop rcx
 	pop rax
 endm	
-
-DetourKiSystemCall64Shadow proc
-	swapgs
-	mov gs:[7010h],rsp
-	mov rsp,gs:[7000h]
-	bt dword ptr gs:[7018],1
-	jb kpti
-	mov cr3,rsp ;切换cr3后才有我们的内核代码映射
-kpti:
-	mov rsp,gs:[7008h]
-
-	;int 3
-
-	SAVE
-	sub rsp,28h
-	mov rax,rcx
-	call SystemCallHandler
-	add rsp,28h
-	RESTOR
-
-	;int 3
-
-	;执行完之后控制流应该返回到原KiSystemCall64Shadow+0x2D的地方
-	jmp qword ptr [KiSystemCall64ShadowCommon]
-
-
-DetourKiSystemCall64Shadow endp
-
-DetourKiSystemServiceCopyEnd proc
-	
-	;int 3
-	;jmp qword ptr[OriKiSystemServiceCopyEnd]
-
-DetourKiSystemServiceCopyEnd endp
-
-;DetourKiSystemServiceCopyStart proc
-	
-;	int 3
-;	jmp qword ptr[OriKiSystemServiceCopyStart]
-
-;DetourKiSystemServiceCopyStart endp
-
-
-DetourOtherKiSystemServiceCopyEnd proc
-
-	int 3
-	;jmp qword ptr[OriOtherKiSystemServiceCopyEnd]
-	
-DetourOtherKiSystemServiceCopyEnd endp
 
 DetourKiSystemServiceStart proc
 	

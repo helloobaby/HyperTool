@@ -154,14 +154,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="Arch\x64\x64.asm">
-      <Filter>Source Files</Filter>
-    </MASM>
-    <MASM Include="Arch\x86\x86.asm">
-      <Filter>Source Files</Filter>
-    </MASM>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="HyperPlatform.ruleset" />
     <None Include="kernel-hook\khook\hde\LICENSE">
       <Filter>hde</Filter>
@@ -174,5 +166,10 @@
     <CustomBuild Include="KernelBase.asm">
       <Filter>Source Files</Filter>
     </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <MASM Include="Arch\x64\x64.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>
