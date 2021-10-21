@@ -136,7 +136,6 @@ void DoSystemCallHook()
 //只用于SSDT，不适用于ShadowSSDT
 PVOID GetSSDTEntry(IN ULONG index)
 {
-	ULONG size = 0;
 	PSYSTEM_SERVICE_DESCRIPTOR_TABLE pSSDT = aSYSTEM_SERVICE_DESCRIPTOR_TABLE;
 	PVOID pBase = (PVOID)KernelBase;
 

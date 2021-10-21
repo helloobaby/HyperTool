@@ -659,16 +659,29 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
   if ((ULONG_PTR)fault_pa >= SystemFakePage.GuestPA.QuadPart && 
       fault_pa <= SystemFakePage.GuestPA.QuadPart + 0x1000)
   {
-      DbgBreakPoint();
       const auto ept_entry = EptGetEptPtEntry(ept_data, fault_pa);
-      //换物理页,换完之后读写权限要加上，不然客户机这个核心一直读就vm-exit然死循环了
-      ept_entry->fields.read_access = 1;
-      ept_entry->fields.write_access = 1;
-      ept_entry->fields.physial_address = (SystemFakePage.PageContentPA.QuadPart >> 12);
+      //不用判断读，因为读没有权限，写有权限的的话会EptMisconfig
+      if (!ept_entry->fields.read_access)
+      {
+          ept_entry->fields.read_access = 1;
+          ept_entry->fields.write_access = 1;
+          ept_entry->fields.execute_access = 0;
+          ept_entry->fields.physial_address = (SystemFakePage.PageContentPA.QuadPart >> 12);
+      }
+      else if (!ept_entry->fields.execute_access)
+      {
+          ept_entry->fields.execute_access = 1;
+          ept_entry->fields.read_access = 0;
+          ept_entry->fields.write_access = 0;
+          ept_entry->fields.physial_address = (SystemFakePage.GuestPA.QuadPart >> 12);
+      }
+      else
+          HYPERPLATFORM_COMMON_DBG_BREAK();
 
       UtilInveptGlobal();
       return;
   }
+
 
 
   if (exit_qualification.fields.ept_readable ||
