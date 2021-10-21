@@ -8,10 +8,6 @@
 extern "C"
 {
 #include"kernel-hook/khook/khook/hk.h"
-extern "C" void DetourKiSystemCall64Shadow();
-extern "C" void DetourKiSystemServiceCopyEnd();
-extern "C" void DetourOtherKiSystemServiceCopyEnd();
-extern "C" void DetourKiSystemServiceCopyStart();
 extern "C" void DetourKiSystemServiceStart();
 NTSYSAPI const char* PsGetProcessImageFileName(PEPROCESS Process);
 
