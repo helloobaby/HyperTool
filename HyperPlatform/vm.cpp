@@ -151,6 +151,9 @@ _Use_decl_annotations_ NTSTATUS VmInitialization() {
     return STATUS_HV_FEATURE_UNAVAILABLE;
   }
 
+  //
+  //初始化所有核心共用的data
+  //
   const auto shared_data = VmpInitializeSharedData();
   if (!shared_data) {
     return STATUS_MEMORY_NOT_ALLOCATED;
@@ -341,6 +344,7 @@ _Use_decl_annotations_ static UCHAR *VmpBuildIoBitmaps() {
 }
 
 // Virtualize the current processor
+// 这个函数每个核心都会执行一次
 _Use_decl_annotations_ static NTSTATUS VmpStartVm(void *context) {
   PAGED_CODE()
 
@@ -366,7 +370,7 @@ _Use_decl_annotations_ static NTSTATUS VmpStartVm(void *context) {
 // Allocates structures for virtualization, initializes VMCS and virtualizes
 // the current processor
 _Use_decl_annotations_ static void VmpInitializeVm(
-    ULONG_PTR guest_stack_pointer, ULONG_PTR guest_instruction_pointer,
+    ULONG_PTR guest_stack_pointer, ULONG_PTR guest_instruction_pointer/*x64.asm:asmResumeVm*/,
     void *context) {
   PAGED_CODE()
 
@@ -376,6 +380,7 @@ _Use_decl_annotations_ static void VmpInitializeVm(
     return;
   }
 
+  //分配每个核心专属的processor_data
   // Allocate related structures
   const auto processor_data =
       static_cast<ProcessorData *>(ExAllocatePoolWithTag(
@@ -422,6 +427,7 @@ _Use_decl_annotations_ static void VmpInitializeVm(
   }
   RtlZeroMemory(processor_data->vmxon_region, kVmxMaxVmcsSize);
 
+  //将processor_data放在vmmstack的开始处，这样vm-exit的时候可以直接获取
   // Initialize stack memory for VMM looks like this:
   //
   //                   +  <- vmm_stack_region_base  (eg, ffffe300`412bd000)   

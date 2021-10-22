@@ -1,9 +1,6 @@
-#include"systemcall.h"
-#include"util.h"
-#include"ia32_type.h"
-#include"log.h"
 #include"include/exclusivity.h"
-#include"ept.h"
+#include"ia32_type.h"
+#include"systemcall.h"
 
 extern "C"
 {
@@ -13,7 +10,10 @@ NTSYSAPI const char* PsGetProcessImageFileName(PEPROCESS Process);
 
 }
 
-FakePage SystemFakePage;
+
+fpSystemCall SystemCallFake;
+NTSTATUS HookStatus = STATUS_UNSUCCESSFUL;
+
 
 
 const char* GetSyscallProcess()
@@ -21,11 +21,22 @@ const char* GetSyscallProcess()
 	return PsGetProcessImageFileName(IoGetCurrentProcess());
 }
 
+
 NTSTATUS InitSystemVar()
 {
-	//
-	//初始化内核基址
-	//
+	/*
+	* 这个函数用来在vmlaunch之前初始化一些全局变量
+	* 
+	* 1.获得内核基址
+	* 
+	* 2.获得KiSystemServiceStart的地址
+	* 
+	* 3.获得SSDT Table的地址
+	* 
+	* 4.初始化一个伪造的guest页面
+	*/
+
+
 	KernelBase = GetKernelBase();
 	
 	PtrKiSystemServiceStart = (ULONG_PTR)&DetourKiSystemServiceStart;
@@ -36,24 +47,15 @@ NTSTATUS InitSystemVar()
 	aSYSTEM_SERVICE_DESCRIPTOR_TABLE = 
 	(SYSTEM_SERVICE_DESCRIPTOR_TABLE*)(OffsetKeServiceDescriptorTable + KernelBase);
 
-
-	SystemFakePage.GuestVA = (PVOID)((KiSystemServiceStart >>12) << 12);
-	SystemFakePage.PageContent = ExAllocatePoolWithTag(NonPagedPool, PAGE_SIZE, 'a');
-	if (!SystemFakePage.PageContent)
-		return STATUS_UNSUCCESSFUL;
-	memcpy(SystemFakePage.PageContent, SystemFakePage.GuestVA,PAGE_SIZE);
-	//PA都没有页对齐
-	SystemFakePage.GuestPA = MmGetPhysicalAddress(SystemFakePage.GuestVA);
-	SystemFakePage.PageContentPA = MmGetPhysicalAddress(SystemFakePage.PageContent);
+	SystemCallFake.Construct();
 
 	return STATUS_SUCCESS;
 }
 
 void DoSystemCallHook()
 {
-
 	auto exclusivity = ExclGainExclusivity();
-	HkDetourFunction((PVOID)
+	HookStatus = HkDetourFunction((PVOID)
 		KiSystemServiceStart,
 		(PVOID)PtrKiSystemServiceStart,
 		&OriKiSystemServiceStart);

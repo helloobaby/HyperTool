@@ -5,14 +5,17 @@
 /// @file
 /// Implements EPT functions.
 
+#include"include/stdafx.h"
 #include "ept.h"
 #include "asm.h"
 #include "common.h"
 #include "log.h"
 #include "util.h"
 #include "performance.h"
+#include "systemcall.h"
 
-extern FakePage SystemFakePage;
+
+extern fpSystemCall SystemCallFake;
 
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -402,8 +405,16 @@ _Use_decl_annotations_ static memory_type EptpGetMemoryType(
 }
 
 // Builds EPT, allocates pre-allocated entires, initializes and returns EptData
+//每个核心都要一次Ept Init?
 _Use_decl_annotations_ EptData *EptInitialization() {
-  PAGED_CODE()
+    PAGED_CODE()
+
+#if 1
+    const auto ProcessNumber = KeGetCurrentProcessorNumber();
+    Log("Ept Init Current Processor Number %x\n", ProcessNumber);
+#endif
+
+
 
   static const auto kEptPageWalkLevel = 4ul;
 
@@ -488,7 +499,7 @@ _Use_decl_annotations_ EptData *EptInitialization() {
   ept_data->preallocated_entries_count = 0;
 
   //此时基本ept初始化完成，我们需要隐藏页面的话就可以篡改他的原始ept设置
-  FixOriginEpt(ept_data);
+  EptFixOriginEpt(ept_data);
 
   return ept_data;
 }
@@ -656,24 +667,29 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
   //对我们需要隐藏的内存做特殊处理
   //
 
-  if ((ULONG_PTR)fault_pa >= SystemFakePage.GuestPA.QuadPart && 
-      fault_pa <= SystemFakePage.GuestPA.QuadPart + 0x1000)
+
+//system call
+  if (fault_pa >= SystemCallFake.fp.GuestPA.QuadPart && 
+      fault_pa <= SystemCallFake.fp.GuestPA.QuadPart + 0x1000)
   {
       const auto ept_entry = EptGetEptPtEntry(ept_data, fault_pa);
+
+      //DbgBreakPoint();
+
       //不用判断读，因为读没有权限，写有权限的的话会EptMisconfig
       if (!ept_entry->fields.read_access)
       {
           ept_entry->fields.read_access = 1;
           ept_entry->fields.write_access = 1;
           ept_entry->fields.execute_access = 0;
-          ept_entry->fields.physial_address = (SystemFakePage.PageContentPA.QuadPart >> 12);
+          ept_entry->fields.physial_address = (SystemCallFake.fp.PageContentPA.QuadPart >> 12);
       }
       else if (!ept_entry->fields.execute_access)
       {
           ept_entry->fields.execute_access = 1;
           ept_entry->fields.read_access = 0;
           ept_entry->fields.write_access = 0;
-          ept_entry->fields.physial_address = (SystemFakePage.GuestPA.QuadPart >> 12);
+          ept_entry->fields.physial_address = (SystemCallFake.fp.GuestPA.QuadPart >> 12);
       }
       else
           HYPERPLATFORM_COMMON_DBG_BREAK();
@@ -681,6 +697,10 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
       UtilInveptGlobal();
       return;
   }
+//
+
+
+
 
 
 
@@ -840,12 +860,17 @@ _Use_decl_annotations_ static void EptpDestructTables(EptCommonEntry *table,
   ExFreePoolWithTag(table, kHyperPlatformCommonPoolTag);
 }
 
-void FixOriginEpt(EptData* const EptData)
+
+void EptFixOriginEpt(EptData* const EptData)
 {
+    /*
+    * 对原来正常的ept打补丁
+    */
 #if 0
     DbgBreakPoint();
 #endif
-    auto ept_entry = EptGetEptPtEntry(EptData, SystemFakePage.GuestPA.QuadPart);
+    //这里要左移12，因为这里的物理地址是已经页对齐的
+    auto ept_entry = EptGetEptPtEntry(EptData, SystemCallFake.fp.GuestPA.QuadPart);
     ept_entry->fields.read_access = 0;
     ept_entry->fields.write_access = 0;
 }

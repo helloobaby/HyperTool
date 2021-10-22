@@ -75,6 +75,9 @@
     <ClCompile Include="include\exclusivity.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="FakePage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asm.h">
@@ -152,6 +155,9 @@
     <ClInclude Include="include\exclusivity.h">
       <Filter>hde</Filter>
     </ClInclude>
+    <ClInclude Include="FakePage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="HyperPlatform.ruleset" />
@@ -160,15 +166,13 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="system_call_handler.asm">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="KernelBase.asm">
-      <Filter>Source Files</Filter>
-    </CustomBuild>
-  </ItemGroup>
-  <ItemGroup>
     <MASM Include="Arch\x64\x64.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="KernelBase.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
+    <MASM Include="system_call_handler.asm">
       <Filter>Source Files</Filter>
     </MASM>
   </ItemGroup>

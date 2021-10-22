@@ -5,6 +5,7 @@
 /// @file
 /// Implements logging functions.
 
+
 #include <ntifs.h>
 #include "log.h"
 

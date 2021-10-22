@@ -44,13 +44,6 @@ union EptCommonEntry {
 };
 static_assert(sizeof(EptCommonEntry) == 8, "Size check");
 
-struct FakePage
-{
-    PVOID GuestVA;//要fake的guest线性地址
-    PHYSICAL_ADDRESS GuestPA;
-    PVOID PageContent;//包含这个页面的信息，在vmlaunch之前填充好,也就是guest能看到的页面内容
-    PHYSICAL_ADDRESS PageContentPA;
-};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -93,7 +86,7 @@ _IRQL_requires_min_(DISPATCH_LEVEL) void EptHandleEptViolation(
 EptCommonEntry* EptGetEptPtEntry(_In_ EptData* ept_data,
                                  _In_ ULONG64 physical_address);
 
-void FixOriginEpt(EptData * const EptData);
+void EptFixOriginEpt(EptData * const EptData);
 
 ////////////////////////////////////////////////////////////////////////////////
 //

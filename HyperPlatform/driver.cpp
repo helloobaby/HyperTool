@@ -17,14 +17,19 @@
 #include "util.h"
 #include "vm.h"
 #include "performance.h"
-
-
+#include "systemcall.h"
+extern "C"
+{
+#include "kernel-hook/khook/khook/hk.h"
+}
 //
 //实现于systemcall.cpp
 //
 extern NTSTATUS InitSystemVar();
 extern void DoSystemCallHook();
 
+extern NTSTATUS HookStatus;
+extern fpSystemCall SystemCallFake;
  
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,8 +94,10 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       return STATUS_UNSUCCESSFUL;
   }
 
-  DoSystemCallHook();
 
+#if 0 //是否要开启KiSystemCall64的hook
+  DoSystemCallHook();
+#endif
 
   //
   //便于测试
@@ -209,6 +216,10 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
   PerfTermination();
   GlobalObjectTermination();
   LogTermination();
+  if(NT_SUCCESS(HookStatus))
+  HkRestoreFunction((PVOID)KiSystemServiceStart, OriKiSystemServiceStart);
+  if (SystemCallFake.fp.PageContent)
+      ExFreePool(SystemCallFake.fp.PageContent);
 }
 
 // Test if the system is one of supported OS versions

@@ -1,5 +1,6 @@
-#include"include/stdafx.h"
+#include"log.h"
 #include"include/PDBSDK.h"
+#include"FakePage.h"
 
 typedef struct _SYSTEM_SERVICE_DESCRIPTOR_TABLE
 {
@@ -26,7 +27,7 @@ extern "C"
 	ULONG_PTR GetKernelBase();
 	const char* GetSyscallProcess();
 
-	decltype(&SystemCallHandler) UserSystemCallHandler = NULL;
+	inline decltype(&SystemCallHandler) UserSystemCallHandler = NULL;
 
 	void InitUserSystemCallHandler(decltype(&SystemCallHandler) UserHandler);
 }
@@ -41,3 +42,24 @@ NTSTATUS InitSystemVar();
 void DoSystemCallHook();
 
 PVOID GetSSDTEntry(IN ULONG index);
+
+struct fpSystemCall :public ICFakePage
+{
+	virtual void Construct() override
+	{
+		fp.GuestVA = (PVOID)((KiSystemServiceStart >> 12) << 12);
+		fp.PageContent = ExAllocatePoolWithQuota(NonPagedPool, PAGE_SIZE);
+		memcpy(fp.PageContent, fp.GuestVA, PAGE_SIZE);
+
+		//
+		//PAÃ»ÓÐÒ³¶ÔÆë£¡
+		//
+		fp.GuestPA = MmGetPhysicalAddress(fp.GuestVA);
+		fp.PageContentPA = MmGetPhysicalAddress(fp.PageContent);
+	}
+	virtual void Destruct() override
+	{
+
+	}
+
+};

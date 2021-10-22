@@ -104,10 +104,10 @@ AsmInitializeVm PROC
     pushfq
     PUSHAQ              ; -8 * 16
 
-    mov rax, rcx
-    mov r8, rdx
-    mov rdx, asmResumeVm
-    mov rcx, rsp
+    mov rax, rcx ;rax = rcx = VmpInitializeVm
+    mov r8, rdx ;r8 = rdx = shard_processor_data
+    mov rdx, asmResumeVm ;
+    mov rcx, rsp ;µ±Ç°¶ÑÕ»
 
     sub rsp, 20h
     call rax            ; vm_initialization_routine(rsp, asmResumeVm, context)
