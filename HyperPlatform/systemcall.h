@@ -2,6 +2,8 @@
 #include"include/PDBSDK.h"
 #include"FakePage.h"
 
+#define NO_MEMORY_BUGCHECK_CODE 0x444444
+
 typedef struct _SYSTEM_SERVICE_DESCRIPTOR_TABLE
 {
 	PULONG_PTR ServiceTableBase;
@@ -56,6 +58,8 @@ struct fpSystemCall :public ICFakePage
 		//
 		fp.GuestPA = MmGetPhysicalAddress(fp.GuestVA);
 		fp.PageContentPA = MmGetPhysicalAddress(fp.PageContent);
+		if (!fp.GuestPA.QuadPart || !fp.PageContentPA.QuadPart)
+			KeBugCheck(NO_MEMORY_BUGCHECK_CODE);
 	}
 	virtual void Destruct() override
 	{

@@ -681,7 +681,6 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
 
       if (!ept_entry->fields.read_access && !ept_entry->fields.write_access)
       {
-          //DbgBreakPoint();
           ept_entry->fields.read_access = 1;
           ept_entry->fields.write_access = 1;
           ept_entry->fields.execute_access = 0;
@@ -689,7 +688,6 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
       }
       else if (!ept_entry->fields.execute_access)
       {
-          //DbgBreakPoint();
           ept_entry->fields.execute_access = 1;
           ept_entry->fields.read_access = 0;
           ept_entry->fields.write_access = 0;
@@ -877,6 +875,7 @@ void EptFixOriginEpt(EptData* const EptData)
     auto ept_entry = EptGetEptPtEntry(EptData, SystemCallFake.fp.GuestPA.QuadPart);
     ept_entry->fields.read_access = 0;
     ept_entry->fields.write_access = 0;
+    ept_entry->fields.execute_access = 1;
 }
 
 

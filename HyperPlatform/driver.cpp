@@ -8,6 +8,7 @@
 #ifndef POOL_NX_OPTIN
 #define POOL_NX_OPTIN 1
 #endif
+#include "include/write_protect.h"
 #include "driver.h"
 #include "common.h"
 #include "global_object.h"
@@ -30,6 +31,7 @@ extern void DoSystemCallHook();
 
 extern NTSTATUS HookStatus;
 extern fpSystemCall SystemCallFake;
+extern char SystemCallRecoverCode[15];
  
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -216,8 +218,9 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
   PerfTermination();
   GlobalObjectTermination();
   LogTermination();
-  if(NT_SUCCESS(HookStatus))
-  HkRestoreFunction((PVOID)KiSystemServiceStart, OriKiSystemServiceStart);
+  auto irql = WPOFFx64();
+  memcpy((PVOID)KiSystemServiceStart, SystemCallRecoverCode, sizeof(SystemCallRecoverCode));
+  WPONx64(irql);
   if (SystemCallFake.fp.PageContent)
       ExFreePool(SystemCallFake.fp.PageContent);
 }

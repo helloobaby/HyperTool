@@ -13,8 +13,8 @@ NTSYSAPI const char* PsGetProcessImageFileName(PEPROCESS Process);
 
 
 fpSystemCall SystemCallFake;
+char SystemCallRecoverCode[15] = {};
 NTSTATUS HookStatus = STATUS_UNSUCCESSFUL;
-
 
 
 const char* GetSyscallProcess()
@@ -74,6 +74,7 @@ void DoSystemCallHook()
 	//r15:pop r15
 	//
 	char hook[] = { 0x41,0x57,0x49,0xBF,0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x41,0xFF,0xE7 };
+	memcpy(SystemCallRecoverCode, (PVOID)KiSystemServiceStart, sizeof(SystemCallRecoverCode));
 	memcpy(hook + 4, &PtrKiSystemServiceStart, sizeof(PtrKiSystemServiceStart));
 	auto irql = WPOFFx64();
 	memcpy((PVOID)KiSystemServiceStart, hook, sizeof(hook));
