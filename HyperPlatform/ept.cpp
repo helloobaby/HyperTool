@@ -409,21 +409,26 @@ _Use_decl_annotations_ static memory_type EptpGetMemoryType(
 _Use_decl_annotations_ EptData *EptInitialization() {
     PAGED_CODE()
 
-#if 1
-    const auto ProcessNumber = KeGetCurrentProcessorNumber();
-    Log("Ept Init Current Processor Number %x\n", ProcessNumber);
-#endif
-
-
-
   static const auto kEptPageWalkLevel = 4ul;
 
-  // Allocate ept_data
+  //
+  //这个和下面的#if同时开同时关，如果开了的话代表每个processor的eptdata都相同了，卸载的时候的代码也要改
+  //不改卸载代码的话，加载没问题，卸载蓝屏。
+  //
+#if 0 
+  static 
+#endif
   const auto ept_data = static_cast<EptData *>(ExAllocatePoolWithTag(
       NonPagedPool, sizeof(EptData), kHyperPlatformCommonPoolTag));
   if (!ept_data) {
-    return nullptr;
+      return nullptr;
   }
+#if 0
+  const auto ProcessNumber = KeGetCurrentProcessorNumber();
+  Log("Ept Init Current Processor Number %x\n", ProcessNumber);
+  if (ProcessNumber > 0)
+      return ept_data;
+#endif
   RtlZeroMemory(ept_data, sizeof(EptData));
 
   // Allocate EPT_PML4 and initialize EptPointer
@@ -674,11 +679,9 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
   {
       const auto ept_entry = EptGetEptPtEntry(ept_data, fault_pa);
 
-      //DbgBreakPoint();
-
-      //不用判断读，因为读没有权限，写有权限的的话会EptMisconfig
-      if (!ept_entry->fields.read_access)
+      if (!ept_entry->fields.read_access && !ept_entry->fields.write_access)
       {
+          //DbgBreakPoint();
           ept_entry->fields.read_access = 1;
           ept_entry->fields.write_access = 1;
           ept_entry->fields.execute_access = 0;
@@ -686,6 +689,7 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
       }
       else if (!ept_entry->fields.execute_access)
       {
+          //DbgBreakPoint();
           ept_entry->fields.execute_access = 1;
           ept_entry->fields.read_access = 0;
           ept_entry->fields.write_access = 0;
@@ -874,5 +878,8 @@ void EptFixOriginEpt(EptData* const EptData)
     ept_entry->fields.read_access = 0;
     ept_entry->fields.write_access = 0;
 }
+
+
+
 
 }  // extern "C"

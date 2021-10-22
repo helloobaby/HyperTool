@@ -41,8 +41,9 @@ endm
 
 DetourKiSystemServiceStart proc
 	
-
-		SAVE
+	;int 3
+	pop r15
+	SAVE
 	sub rsp,28h
 	mov rcx,rsp
 	mov edx,eax
@@ -50,6 +51,11 @@ DetourKiSystemServiceStart proc
 	add rsp,28h
 	RESTOR
 
+	mov [rbx+90h],rsp
+	mov     edi, eax
+	shr     edi, 7
+	and     edi, 20h
+	and     eax, 0FFFh
 	jmp qword ptr[OriKiSystemServiceStart]
 
 DetourKiSystemServiceStart endp

@@ -95,7 +95,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   }
 
 
-#if 0 //是否要开启KiSystemCall64的hook
+#if 1 //是否要开启KiSystemCall64的hook
   DoSystemCallHook();
 #endif
 

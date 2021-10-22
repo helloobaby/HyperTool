@@ -93,6 +93,7 @@
     <ClInclude Include="hotplug_callback.h" />
     <ClInclude Include="ia32_type.h" />
     <ClInclude Include="include\exclusivity.h" />
+    <ClInclude Include="include\write_protect.h" />
     <ClInclude Include="kernel-hook\khook\hde\hde.h" />
     <ClInclude Include="kernel-hook\khook\hde\hde32.h" />
     <ClInclude Include="kernel-hook\khook\hde\hde64.h" />

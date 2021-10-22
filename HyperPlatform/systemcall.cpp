@@ -1,6 +1,7 @@
 #include"include/exclusivity.h"
 #include"ia32_type.h"
 #include"systemcall.h"
+#include"include/write_protect.h"
 
 extern "C"
 {
@@ -54,11 +55,30 @@ NTSTATUS InitSystemVar()
 
 void DoSystemCallHook()
 {
+	OriKiSystemServiceStart = (PVOID)((ULONG_PTR)KiSystemServiceStart + 0x14);
 	auto exclusivity = ExclGainExclusivity();
+	//
+	//hook的时候出现了巨大bug，ept hide hook的时候千万不能用jmp [prt]，不然在读vm-exit和写vm-exit之间疯狂循环
+	//
+#if 0
 	HookStatus = HkDetourFunction((PVOID)
 		KiSystemServiceStart,
 		(PVOID)PtrKiSystemServiceStart,
 		&OriKiSystemServiceStart);
+#endif
+	//
+	//push r15
+	//mov r15,xx
+	//jmp r15
+	// 
+	//r15:pop r15
+	//
+	char hook[] = { 0x41,0x57,0x49,0xBF,0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x41,0xFF,0xE7 };
+	memcpy(hook + 4, &PtrKiSystemServiceStart, sizeof(PtrKiSystemServiceStart));
+	auto irql = WPOFFx64();
+	memcpy((PVOID)KiSystemServiceStart, hook, sizeof(hook));
+	WPONx64(irql);
+
 	ExclReleaseExclusivity(exclusivity);
 }
 
@@ -88,7 +108,6 @@ void InitUserSystemCallHandler(decltype(&SystemCallHandler) UserHandler)
 void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
 {
 
-#if 1
 	//用来记录拦截了多少次系统调用，方便debug，只有第一次的时候会输出
 	static ULONG64 SysCallCount = 0;
 	if (!SysCallCount) {
@@ -96,7 +115,6 @@ void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
 		Log("[SYSCALL]%s\nIndex %x\nTarget %llx\n", GetSyscallProcess(), SSDT_INDEX, GetSSDTEntry(SSDT_INDEX));
 	}
 	SysCallCount++;
-#endif
 
 	//然后应该调用用户给的处理函数，如果没有提供，则使用默认的
 

@@ -158,6 +158,9 @@
     <ClInclude Include="FakePage.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\write_protect.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="HyperPlatform.ruleset" />
