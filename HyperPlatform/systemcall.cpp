@@ -129,7 +129,13 @@ void SystemCallLog(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX)
 	//
 	//不需要输出shadow ssdt的
 	//
-	if (!strcmp(syscall_name, "AntiDebugger.exe")) {
+
+	//
+	//ConsoleApplication3.vmp.exe
+	//因为EPROCESS.ImageFileName[16]，所以需要截断至16个字节(带末尾空字符)
+	//这个测试exe在项目目录下
+	//
+	if (!strcmp(syscall_name, "ConsoleApplica")) {
 		if (SSDT_INDEX < 0x1000)
 			Log("[%s]Syscall rip %p SSDT Index %p\n", syscall_name,TrapFrame->Rip - 2, SSDT_INDEX);
 	}
