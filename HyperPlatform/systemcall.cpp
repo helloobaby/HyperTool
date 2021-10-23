@@ -109,13 +109,19 @@ void InitUserSystemCallHandler(decltype(&SystemCallHandler) UserHandler)
 void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
 {
 
+#ifdef DBG
 	//用来记录拦截了多少次系统调用，方便debug，只有第一次的时候会输出
-	static ULONG64 SysCallCount = 0;
+	static LONG64 SysCallCount = 0;
 	if (!SysCallCount) {
 		Log("[SysCallCount]at %p\n", &SysCallCount);
+		Log("[User Rip]syscall rip %p\n", TrapFrame->Rip-2);
 		Log("[SYSCALL]%s\nIndex %x\nTarget %llx\n", GetSyscallProcess(), SSDT_INDEX, GetSSDTEntry(SSDT_INDEX));
+#if 0
+		DbgBreakPoint();
+#endif
 	}
-	SysCallCount++;
+	InterlockedAdd64(&SysCallCount, 1);
+#endif
 
 	//然后应该调用用户给的处理函数，如果没有提供，则使用默认的
 

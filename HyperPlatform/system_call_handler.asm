@@ -46,6 +46,7 @@ DetourKiSystemServiceStart proc
 	SAVE
 	sub rsp,28h
 	mov rcx,rsp
+	add rcx,160;A0h
 	mov edx,eax
 	call SystemCallHandler
 	add rsp,28h
