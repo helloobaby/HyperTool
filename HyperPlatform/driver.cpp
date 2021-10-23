@@ -23,6 +23,12 @@ extern "C"
 {
 #include "kernel-hook/khook/khook/hk.h"
 }
+
+///////
+#define HOOK_SYSCALL
+///////
+
+
 //
 //实现于systemcall.cpp
 //
@@ -97,8 +103,12 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   }
 
 
-#if 1 //是否要开启KiSystemCall64的hook
+#ifdef HOOK_SYSCALL 
+  InitUserSystemCallHandler(SystemCallLog);
+
+  //是否要开启KiSystemCall64的hook
   DoSystemCallHook();
+
 #endif
 
   //
@@ -218,9 +228,11 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
   PerfTermination();
   GlobalObjectTermination();
   LogTermination();
+#ifdef HOOK_SYSCALL
   auto irql = WPOFFx64();
   memcpy((PVOID)KiSystemServiceStart, SystemCallRecoverCode, sizeof(SystemCallRecoverCode));
   WPONx64(irql);
+#endif
   if (SystemCallFake.fp.PageContent)
       ExFreePool(SystemCallFake.fp.PageContent);
 }

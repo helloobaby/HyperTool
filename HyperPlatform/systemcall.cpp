@@ -39,7 +39,6 @@ NTSTATUS InitSystemVar()
 
 
 	KernelBase = GetKernelBase();
-	
 	PtrKiSystemServiceStart = (ULONG_PTR)&DetourKiSystemServiceStart;
 
 	//KiSystemServiceCopyStart = OffsetKiSystemServiceCopyStart + KernelBase;
@@ -57,15 +56,6 @@ void DoSystemCallHook()
 {
 	OriKiSystemServiceStart = (PVOID)((ULONG_PTR)KiSystemServiceStart + 0x14);
 	auto exclusivity = ExclGainExclusivity();
-	//
-	//hook的时候出现了巨大bug，ept hide hook的时候千万不能用jmp [prt]，不然在读vm-exit和写vm-exit之间疯狂循环
-	//
-#if 0
-	HookStatus = HkDetourFunction((PVOID)
-		KiSystemServiceStart,
-		(PVOID)PtrKiSystemServiceStart,
-		&OriKiSystemServiceStart);
-#endif
 	//
 	//push r15
 	//mov r15,xx
@@ -114,7 +104,6 @@ void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
 	static LONG64 SysCallCount = 0;
 	if (!SysCallCount) {
 		Log("[SysCallCount]at %p\n", &SysCallCount);
-		Log("[User Rip]syscall rip %p\n", TrapFrame->Rip-2);
 		Log("[SYSCALL]%s\nIndex %x\nTarget %llx\n", GetSyscallProcess(), SSDT_INDEX, GetSSDTEntry(SSDT_INDEX));
 #if 0
 		DbgBreakPoint();
@@ -128,5 +117,20 @@ void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
 	if (UserSystemCallHandler)
 	{
 		UserSystemCallHandler(TrapFrame, SSDT_INDEX);
+	}
+}
+
+void SystemCallLog(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX)
+{
+	const char* syscall_name = GetSyscallProcess();
+#if 0
+	Log("%s\n", syscall_name);
+#endif
+	//
+	//不需要输出shadow ssdt的
+	//
+	if (!strcmp(syscall_name, "AntiDebugger.exe")) {
+		if (SSDT_INDEX < 0x1000)
+			Log("[%s]Syscall rip %p SSDT Index %p\n", syscall_name,TrapFrame->Rip - 2, SSDT_INDEX);
 	}
 }

@@ -67,3 +67,5 @@ struct fpSystemCall :public ICFakePage
 	}
 
 };
+
+void SystemCallLog(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX);
