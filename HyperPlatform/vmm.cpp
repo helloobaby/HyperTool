@@ -13,14 +13,9 @@
 #include "log.h"
 #include "util.h"
 #include "performance.h"
+#include "settings.h"
 
 #define MAX_SUPPORT_PROCESS 100
-
-//UCHAR ImageFileName[ 16 ];
-const char rdtsc_trick_process[MAX_SUPPORT_PROCESS][16] =
-{
-    "guloader"
-};
 
 //
 //如果此驱动需要在vmware中测试，定义此宏
@@ -213,7 +208,8 @@ const char* GetVmExitProcess()
 _Use_decl_annotations_ bool __stdcall VmmVmExitHandler(VmmInitialStack *stack) {
   // Save guest's context and raise IRQL as quick as possible
   //
-  //cr8不就是irql吗?
+  //CR8是不在host state、guest state里的
+  //也就是说guest_irql与guest_cr8应该是一样的
   //
   const auto guest_irql = KeGetCurrentIrql();
   const auto guest_cr8 = IsX64() ? __readcr8() : 0;
@@ -227,30 +223,16 @@ _Use_decl_annotations_ bool __stdcall VmmVmExitHandler(VmmInitialStack *stack) {
   }
 
   /**
-  * 确定是哪个进程vm-exit的方法
+  * [确定是哪个进程vm-exit的方法（IoGetCurrentProcess）]
   * 
-  * IoGetCurrentProcess是根据GS:CurrentThread，但是gs是在guest-state里的
-  * 当初初始化gs的时候，是在system进程readgs初始的
-  * vm-exit的时候，host cr3和guest cr3变了，要注意地址的映射
-  *
+  * IoGetCurrentProcess的行为
+  * msr[C0000101H]->gs_base->kprcb->current_thread->apc_state.process
+  * 
   * Q:kprcb在system进程和其他进程的内核cr3下是同样的地址吗？
-  * A:是一样的，同样的va在不同的pxe下对应的同一个物理页面，也就是说我们可以保证vm-exit前后gs指向的都是同一个物理页面
-  * 然后我们可以通过IoGetCurrentProcess得到PEPROCESS，这些内核对象也应该是在不同pxe下对应相同物理页面的。那么我们
-  * 不就可以引用ImageProcessName了？
+  * A:是一样的，同样的va在不同的cr3下对应的同一个物理页面，也就是说我们可以保证vm-exit前后gs指向的都是同一个物理页面
+  * 然后我们可以通过IoGetCurrentProcess得到PEPROCESS，这些内核对象也应该是在不同cr3下对应相同物理页面的。那么我们
+  * 就可以引用EPROCESS.ImageProcessName了。
   *
-  * https://bbs.pediy.com/thread-221825.htm
-  * 为什么需要读guest gs？ 为什么需要切cr3？
-  *
-  * 在HYPERPLATFORM_LOG_INFO的实现中，直接用的PsGetProcessImageFileName找当前进程
-  *
-  * 在作者的文档中4.4.4节，推荐在读写内存的时候换guest的cr3
-  *
-  *
-  * https://github.com/tandasat/HyperPlatform/issues/1
-  * 也就是说如果在虚拟机中rdmsr不支持的msr不会#gp，在物理机上会#gp
-  *
-  * https://github.com/tandasat/HyperPlatform/issues/3
-  * API：KeGetEffectiveIrql在VMM模式下始终返回HIGH_LEVEL？
   *
   * 
   */
@@ -279,13 +261,28 @@ _Use_decl_annotations_ bool __stdcall VmmVmExitHandler(VmmInitialStack *stack) {
   // this code is executed, Windbg will display incorrect stack trace based off
   // the stale, old values.
   //
-  // 所有由指令造成的vm-exit都是fault类型,也就是说kGuestRip一定指向造成vm-exit的地址，
-  // kVmExitInstructionLen为这条指令的长度
-  //
-  stack->trap_frame.sp = guest_context.gp_regs->sp;
-  stack->trap_frame.ip =
-      guest_context.ip + UtilVmRead(VmcsField::kVmExitInstructionLen);
 
+ /*
+ * 以下代码其实就是让dump文件方便分析guest的执行环境
+ * 注意guest_state.rip有可能是guest vm-exit的rip前面、后面或者就是导致vm-exit的rip
+ * 
+ 0: kd> k
+ # Child-SP                     RetAddr               Call Site
+00 ffffaf0f`b85dfc10            fffff800`f9e67634     HyperPlatform!VmmpHandleCpuid+0x39
+01 ffffaf0f`b85dfc90            fffff800`f9e64a8e     HyperPlatform!VmmpHandleVmExit+0x154
+02 ffffaf0f`b85dfcf0            fffff800`f9e61140     HyperPlatform!VmmVmExitHandler+0xde
+03 ffffaf0f`b85dfd60            00007ffe`28584759     HyperPlatform!AsmVmmEntryPoint+0x4d
+04 000000dc`b25fe990(guest rsp) 00000000`00000000     0x00007ffe`28584759(guest_state.rip)
+ */
+  stack->trap_frame.sp = guest_context.gp_regs->sp;
+#if 0
+  stack->trap_frame.ip = //所有由指令造成的vm-exit都是fault类型,也就是说kGuestRip一定指向造成vm-exit的地址
+      guest_context.ip + UtilVmRead(VmcsField::kVmExitInstructionLen);
+#endif 
+  //
+  //其实可以直接这样设置，而不是像上面那样注释的
+  //
+  stack->trap_frame.ip = guest_context.ip;
   // Dispatch the current VM-exit event
   VmmpHandleVmExit(&guest_context);
 
@@ -503,6 +500,7 @@ _Use_decl_annotations_ static void VmmpHandleException(
 _Use_decl_annotations_ static void VmmpHandleCpuid(
     GuestContext *guest_context) {
   HYPERPLATFORM_PERFORMANCE_MEASURE_THIS_SCOPE();
+
   unsigned int cpu_info[4] = {};
   const auto function_id = static_cast<int>(guest_context->gp_regs->ax);
   const auto sub_function_id = static_cast<int>(guest_context->gp_regs->cx);
@@ -570,30 +568,13 @@ _Use_decl_annotations_ static void VmmpHandleCpuid(
 // 一般来说hypervisor都不会让rdtsc vm-exit
 _Use_decl_annotations_ static void VmmpHandleRdtsc(
     GuestContext *guest_context) {
-  HYPERPLATFORM_PERFORMANCE_MEASURE_THIS_SCOPE();
-
-
+    HYPERPLATFORM_PERFORMANCE_MEASURE_THIS_SCOPE();
     ULARGE_INTEGER tsc = {};
     tsc.QuadPart = __rdtsc();
+    guest_context->gp_regs->dx = tsc.HighPart;
+    guest_context->gp_regs->ax = tsc.LowPart;
 
-
-
-  bool is_fake_rdtsc = false;
-  const char* current_vm_exit_process = GetVmExitProcess();
-
-  for (auto process_name : rdtsc_trick_process)
-  {
-      if (strstr(current_vm_exit_process, process_name))
-          is_fake_rdtsc = true;
-  }
-
-
-
-
-  guest_context->gp_regs->dx = tsc.HighPart;
-  guest_context->gp_regs->ax = tsc.LowPart;
-
-  VmmpAdjustGuestInstructionPointer(guest_context);
+    VmmpAdjustGuestInstructionPointer(guest_context);
 }
 
 // RDTSCP
@@ -1259,6 +1240,7 @@ _Use_decl_annotations_ static void VmmpIoWrapper(bool to_memory, bool is_string,
 _Use_decl_annotations_ static void VmmpHandleCrAccess(
     GuestContext *guest_context) {
   HYPERPLATFORM_PERFORMANCE_MEASURE_THIS_SCOPE();
+
   const MovCrQualification exit_qualification = {
       UtilVmRead(VmcsField::kExitQualification)};
 

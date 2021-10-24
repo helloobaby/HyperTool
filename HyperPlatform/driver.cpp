@@ -19,14 +19,11 @@
 #include "vm.h"
 #include "performance.h"
 #include "systemcall.h"
+#include "settings.h"
 extern "C"
 {
 #include "kernel-hook/khook/khook/hk.h"
 }
-
-///////
-#define HOOK_SYSCALL
-///////
 
 
 //
@@ -122,6 +119,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   HYPERPLATFORM_COMMON_DBG_BREAK();
 #endif
 
+  //https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/single-binary-opt-in-pool-nx-optin
   // Request NX Non-Paged Pool when available
   ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
 
@@ -141,6 +139,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   }
 
   // Initialize global variables
+  // 调用全局类的构造函数
   status = GlobalObjectInitialization();
   if (!NT_SUCCESS(status)) {
     LogTermination();

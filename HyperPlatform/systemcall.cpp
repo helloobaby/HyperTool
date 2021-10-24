@@ -2,6 +2,7 @@
 #include"ia32_type.h"
 #include"systemcall.h"
 #include"include/write_protect.h"
+#include "settings.h"
 
 extern "C"
 {

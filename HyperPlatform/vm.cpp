@@ -14,6 +14,7 @@
 #include "log.h"
 #include "util.h"
 #include "vmm.h"
+#include "settings.h"
 
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -657,11 +658,11 @@ _Use_decl_annotations_ static bool VmpSetupVmcs(
 
   VmxSecondaryProcessorBasedControls vm_procctl2_requested = {};
   vm_procctl2_requested.fields.enable_ept = true; //开启EPT
-  vm_procctl2_requested.fields.descriptor_table_exiting = true; //访问GDTR LDTR IDTR TR vm-exit
-  vm_procctl2_requested.fields.enable_rdtscp = true;  // RDTSCP指令产生#UD
-  vm_procctl2_requested.fields.enable_vpid = true; //启用VPID机制
-  vm_procctl2_requested.fields.enable_invpcid = true;//为true的话执行invpcid不会产生#UD
-  vm_procctl2_requested.fields.enable_xsaves_xstors = true;//为true的话执行XSAVES和XRSTORS不会产生#UD intel3 p1174
+  vm_procctl2_requested.fields.descriptor_table_exiting = true; 
+  vm_procctl2_requested.fields.enable_rdtscp = true; 
+  vm_procctl2_requested.fields.enable_vpid = true; 
+  vm_procctl2_requested.fields.enable_invpcid = true;
+  vm_procctl2_requested.fields.enable_xsaves_xstors = true;
   VmxSecondaryProcessorBasedControls vm_procctl2 = {VmpAdjustControlValue(
       Msr::kIa32VmxProcBasedCtls2, vm_procctl2_requested.all)};
 
@@ -1047,7 +1048,7 @@ _Use_decl_annotations_ static void VmpFreeSharedData(
 // Tests if HyperPlatform is already installed
 _Use_decl_annotations_ static bool VmpIsHyperPlatformInstalled() {
   PAGED_CODE()
-
+#if 0
   int cpu_info[4] = {};
   __cpuid(cpu_info, 1);
   const CpuFeaturesEcx cpu_features = {static_cast<ULONG32>(cpu_info[2])};
@@ -1057,6 +1058,8 @@ _Use_decl_annotations_ static bool VmpIsHyperPlatformInstalled() {
 
   __cpuid(cpu_info, kHyperVCpuidInterface);
   return cpu_info[0] == 'PpyH';
+#endif 
+  return false;
 }
 
 // Virtualizes the specified processor

@@ -106,6 +106,7 @@
     <ClInclude Include="performance.h" />
     <ClInclude Include="perf_counter.h" />
     <ClInclude Include="power_callback.h" />
+    <ClInclude Include="settings.h" />
     <ClInclude Include="systemcall.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="util_page_constants.h" />

@@ -13,6 +13,7 @@
 #include "util.h"
 #include "performance.h"
 #include "systemcall.h"
+#include "settings.h"
 
 
 extern fpSystemCall SystemCallFake;
