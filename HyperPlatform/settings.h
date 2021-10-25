@@ -10,6 +10,12 @@
 //
 //#define HOOK_SYSCALL
 
+//
+//¿ªÆôÄÚºËº¯Êýhook
+//
+#define SERVICE_HOOK
+
+
 
 
 

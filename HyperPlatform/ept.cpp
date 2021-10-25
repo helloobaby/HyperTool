@@ -14,9 +14,14 @@
 #include "performance.h"
 #include "systemcall.h"
 #include "settings.h"
-
+#include"include/vector.hpp"
+#include"service_hook.h"
 
 extern fpSystemCall SystemCallFake;
+
+using std::vector;
+extern vector<ServiceHook> vServcieHook;
+
 
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -673,7 +678,7 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
   //对我们需要隐藏的内存做特殊处理
   //
 
-
+#ifdef HOOK_SYSCALL
 //system call
   if (fault_pa >= SystemCallFake.fp.GuestPA.QuadPart && 
       fault_pa <= SystemCallFake.fp.GuestPA.QuadPart + 0x1000)
@@ -696,13 +701,43 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
       }
       else
           HYPERPLATFORM_COMMON_DBG_BREAK();
-
       UtilInveptGlobal();
       return;
   }
 //
+#endif // HOOK_SYSCALL
 
-
+#ifdef SERVICE_HOOK
+  for (auto& service_hook : vServcieHook)
+  {
+#if 0
+      DbgBreakPoint();
+#endif
+      if (fault_pa >= service_hook.fp.GuestPA.QuadPart &&
+          fault_pa <= service_hook.fp.GuestPA.QuadPart + 0x1000)
+      {
+          const auto ept_entry = EptGetEptPtEntry(ept_data, fault_pa);
+          if (!ept_entry->fields.read_access && !ept_entry->fields.write_access)
+          {
+              ept_entry->fields.read_access = 1;
+              ept_entry->fields.write_access = 1;
+              ept_entry->fields.execute_access = 0;
+              ept_entry->fields.physial_address = (SystemCallFake.fp.PageContentPA.QuadPart >> 12);
+          }
+          else if (!ept_entry->fields.execute_access)
+          {
+              ept_entry->fields.execute_access = 1;
+              ept_entry->fields.read_access = 0;
+              ept_entry->fields.write_access = 0;
+              ept_entry->fields.physial_address = (SystemCallFake.fp.GuestPA.QuadPart >> 12);
+          }
+          else
+              HYPERPLATFORM_COMMON_DBG_BREAK();
+      }
+      UtilInveptGlobal();
+      return;
+  }
+#endif // SERVICE_HOOK
 
 
 
@@ -869,14 +904,29 @@ void EptFixOriginEpt(EptData* const EptData)
     /*
     * 对原来正常的ept打补丁
     */
-#if 0
+#if 1
     DbgBreakPoint();
 #endif
     //这里要左移12，因为这里的物理地址是已经页对齐的
+#ifdef HOOK_SYSCALL
     auto ept_entry = EptGetEptPtEntry(EptData, SystemCallFake.fp.GuestPA.QuadPart);
     ept_entry->fields.read_access = 0;
     ept_entry->fields.write_access = 0;
     ept_entry->fields.execute_access = 1;
+#endif 
+
+#ifdef SERVICE_HOOK
+    for (auto& service_hook : vServcieHook)
+    {
+        auto ept_entry = EptGetEptPtEntry(EptData, service_hook.fp.GuestPA.QuadPart);
+        ept_entry->fields.read_access = 0;
+        ept_entry->fields.write_access = 0;
+        ept_entry->fields.execute_access = 1;
+    }
+#endif // SERVICE_HOOK
+
+
+
 }
 
 

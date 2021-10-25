@@ -550,7 +550,19 @@ _Use_decl_annotations_ static bool VmpEnterVmxMode(
   cr0.all &= cr0_fixed1.all;
   cr0.all |= cr0_fixed0.all;
   __writecr0(cr0.all);
+  /*
+  Intel i3-10105F
 
+  IA32_VMX_CR0_FIXED0   = 80000021
+  IA32_VMX_CR0_FIXED1   = ffffffff
+  Original CR0          = 80050031
+  Fixed CR0             = 80050031
+
+  IA32_VMX_CR4_FIXED0   = 00002000
+  IA32_VMX_CR4_FIXED1   = 003727ff
+  Original CR4          = 00170678
+  Fixed CR4             = 00172678
+  */
   HYPERPLATFORM_LOG_DEBUG("IA32_VMX_CR0_FIXED0   = %08Ix", cr0_fixed0.all);
   HYPERPLATFORM_LOG_DEBUG("IA32_VMX_CR0_FIXED1   = %08Ix", cr0_fixed1.all);
   HYPERPLATFORM_LOG_DEBUG("Original CR0          = %08Ix", cr0_original.all);

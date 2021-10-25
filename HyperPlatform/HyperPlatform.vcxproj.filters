@@ -20,6 +20,9 @@
     <Filter Include="hde">
       <UniqueIdentifier>{d1e28be2-d0d8-4994-b4cd-ac6575298766}</UniqueIdentifier>
     </Filter>
+    <Filter Include="STL">
+      <UniqueIdentifier>{0d4b76ef-5687-482e-b446-fa92e2fdb4d1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="HyperPlatform.inf">
@@ -48,12 +51,6 @@
     <ClCompile Include="vmm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="kernel_stl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="global_object.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="power_callback.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -76,6 +73,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FakePage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="include\global.cpp">
+      <Filter>STL</Filter>
+    </ClCompile>
+    <ClCompile Include="include\initsect.cpp">
+      <Filter>STL</Filter>
+    </ClCompile>
+    <ClCompile Include="include\string.cpp">
+      <Filter>STL</Filter>
+    </ClCompile>
+    <ClCompile Include="service_hook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -162,6 +171,24 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="settings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\global.hpp">
+      <Filter>STL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\vector.hpp">
+      <Filter>STL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\sect_attribs.h">
+      <Filter>STL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\type_traits.hpp">
+      <Filter>STL</Filter>
+    </ClInclude>
+    <ClInclude Include="include\string.hpp">
+      <Filter>STL</Filter>
+    </ClInclude>
+    <ClInclude Include="service_hook.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

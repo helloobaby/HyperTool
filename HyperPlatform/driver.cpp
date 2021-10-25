@@ -20,10 +20,14 @@
 #include "performance.h"
 #include "systemcall.h"
 #include "settings.h"
+#include"include/global.hpp"
+#include"service_hook.h"
+
 extern "C"
 {
 #include "kernel-hook/khook/khook/hk.h"
 }
+
 
 
 //
@@ -99,6 +103,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       return STATUS_UNSUCCESSFUL;
   }
 
+  _CRT_INIT();
+
 
 #ifdef HOOK_SYSCALL 
   InitUserSystemCallHandler(SystemCallLog);
@@ -108,8 +114,14 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
 #endif
 
+#ifdef SERVICE_HOOK
+  AddServiceHook(UtilGetSystemProcAddress(L"NtOpenProcess"), DetourNtOpenProcess,(PVOID*)&OriNtOpenProcess);
+#endif 
+
+
+
   //
-  //便于测试
+  //便于测试,屏蔽掉虚拟化的功能
   //
 #if 0
   return STATUS_SUCCESS;
@@ -140,16 +152,17 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
   // Initialize global variables
   // 调用全局类的构造函数
-  status = GlobalObjectInitialization();
-  if (!NT_SUCCESS(status)) {
-    LogTermination();
-    return status;
-  }
+  //status = GlobalObjectInitialization();
+  //if (!NT_SUCCESS(status)) {
+    //LogTermination();
+    //return status;
+  //}
 
   // Initialize perf functions
   status = PerfInitialization();
   if (!NT_SUCCESS(status)) {
-    GlobalObjectTermination();
+    //GlobalObjectTermination();
+    _CRT_UNLOAD();
     LogTermination();
     return status;
   }
@@ -158,7 +171,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   status = UtilInitialization(driver_object);
   if (!NT_SUCCESS(status)) {
     PerfTermination();
-    GlobalObjectTermination();
+    //GlobalObjectTermination();
+    _CRT_UNLOAD();
     LogTermination();
     return status;
   }
@@ -168,7 +182,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   if (!NT_SUCCESS(status)) {
     UtilTermination();
     PerfTermination();
-    GlobalObjectTermination();
+    //GlobalObjectTermination();
+    _CRT_UNLOAD();
     LogTermination();
     return status;
   }
@@ -179,7 +194,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
     PowerCallbackTermination();
     UtilTermination();
     PerfTermination();
-    GlobalObjectTermination();
+    //GlobalObjectTermination();
+    _CRT_UNLOAD();
     LogTermination();
     return status;
   }
@@ -191,7 +207,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
     PowerCallbackTermination();
     UtilTermination();
     PerfTermination();
-    GlobalObjectTermination();
+    //GlobalObjectTermination();
+    _CRT_UNLOAD();
     LogTermination();
     return status;
   }
@@ -225,7 +242,7 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
   PowerCallbackTermination();
   UtilTermination();
   PerfTermination();
-  GlobalObjectTermination();
+  //GlobalObjectTermination();
   LogTermination();
 #ifdef HOOK_SYSCALL
   auto irql = WPOFFx64();
