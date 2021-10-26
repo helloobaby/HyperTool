@@ -266,13 +266,24 @@ _Use_decl_annotations_ bool __stdcall VmmVmExitHandler(VmmInitialStack *stack) {
  * 以下代码其实就是让dump文件方便分析guest的执行环境
  * 注意guest_state.rip有可能是guest vm-exit的rip前面、后面或者就是导致vm-exit的rip
  * 
- 0: kd> k
- # Child-SP                     RetAddr               Call Site
-00 ffffaf0f`b85dfc10            fffff800`f9e67634     HyperPlatform!VmmpHandleCpuid+0x39
-01 ffffaf0f`b85dfc90            fffff800`f9e64a8e     HyperPlatform!VmmpHandleVmExit+0x154
-02 ffffaf0f`b85dfcf0            fffff800`f9e61140     HyperPlatform!VmmVmExitHandler+0xde
-03 ffffaf0f`b85dfd60            00007ffe`28584759     HyperPlatform!AsmVmmEntryPoint+0x4d
-04 000000dc`b25fe990(guest rsp) 00000000`00000000     0x00007ffe`28584759(guest_state.rip)
+0: kd> k
+ # Child-SP          RetAddr               Call Site
+00 ffffaf0f`b84b8bb0 fffff800`f9e6810b     HyperPlatform!EptHandleEptViolation+0x146
+01 ffffaf0f`b84b8c50 fffff800`f9e699f7     HyperPlatform!VmmpHandleEptViolation+0x2b
+02 ffffaf0f`b84b8c90 fffff800`f9e66e6e     HyperPlatform!VmmpHandleVmExit+0x1f7
+03 ffffaf0f`b84b8cf0 fffff800`f9e61190     HyperPlatform!VmmVmExitHandler+0xce
+04 ffffaf0f`b84b8d60 fffff800`f9efcf94     HyperPlatform!AsmVmmEntryPoint+0x4d
+05 ffff848b`a2909988 fffff800`f9eda459     PCHunter64as+0x6cf94
+06 ffff848b`a2909990 fffff800`f9edb775     PCHunter64as+0x4a459
+07 ffff848b`a29099e0 fffff800`f9f01611     PCHunter64as+0x4b775
+08 ffff848b`a2909a30 fffff807`19e869e9     PCHunter64as+0x71611
+09 ffff848b`a2909b30 fffff807`1a402e51     nt!IofCallDriver+0x59
+0a ffff848b`a2909b70 fffff807`1a42de5a     nt!IopSynchronousServiceTail+0x1b1
+0b ffff848b`a2909c20 fffff807`1a3a4b66     nt!IopXxxControlFile+0x68a
+0c ffff848b`a2909d60 fffff807`19fd2885     nt!NtDeviceIoControlFile+0x56
+0d ffff848b`a2909dd0 00007ffe`5711f774     nt!KiSystemServiceCopyEnd+0x25
+0e 00000000`0013c698 00007ffe`5327ef57     0x00007ffe`5711f774
+0f 00000000`0013c6a0 00000000`00000a82     0x00007ffe`5327ef57
  */
   stack->trap_frame.sp = guest_context.gp_regs->sp;
 #if 0

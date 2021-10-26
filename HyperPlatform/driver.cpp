@@ -248,9 +248,14 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
   auto irql = WPOFFx64();
   memcpy((PVOID)KiSystemServiceStart, SystemCallRecoverCode, sizeof(SystemCallRecoverCode));
   WPONx64(irql);
-#endif
   if (SystemCallFake.fp.PageContent)
       ExFreePool(SystemCallFake.fp.PageContent);
+#endif
+
+#ifdef SERVICE_HOOK
+  RemoveServiceHook();
+#endif
+
 }
 
 // Test if the system is one of supported OS versions

@@ -674,6 +674,8 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
           ? UtilVmRead(VmcsField::kGuestLinearAddress)
           : 0);
 
+  bool is_handled = false;
+
   //
   //对我们需要隐藏的内存做特殊处理
   //
@@ -713,6 +715,9 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
 #if 0
       DbgBreakPoint();
 #endif
+      if (!service_hook.isEverythignSuc)
+          continue;
+
       if (fault_pa >= service_hook.fp.GuestPA.QuadPart &&
           fault_pa <= service_hook.fp.GuestPA.QuadPart + 0x1000)
       {
@@ -722,25 +727,29 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
               ept_entry->fields.read_access = 1;
               ept_entry->fields.write_access = 1;
               ept_entry->fields.execute_access = 0;
-              ept_entry->fields.physial_address = (SystemCallFake.fp.PageContentPA.QuadPart >> 12);
+              ept_entry->fields.physial_address = (service_hook.fp.PageContentPA.QuadPart >> 12);
           }
           else if (!ept_entry->fields.execute_access)
           {
               ept_entry->fields.execute_access = 1;
               ept_entry->fields.read_access = 0;
               ept_entry->fields.write_access = 0;
-              ept_entry->fields.physial_address = (SystemCallFake.fp.GuestPA.QuadPart >> 12);
+              ept_entry->fields.physial_address = (service_hook.fp.GuestPA.QuadPart >> 12);
           }
           else
               HYPERPLATFORM_COMMON_DBG_BREAK();
+
+          is_handled = true;
       }
-      UtilInveptGlobal();
-      return;
   }
 #endif // SERVICE_HOOK
 
-
-
+  //是我们的ept hook导致的vm-exit吗
+  if (is_handled)
+  {
+      UtilInveptGlobal();
+      return;
+  }
 
   if (exit_qualification.fields.ept_readable ||
       exit_qualification.fields.ept_writeable ||
@@ -750,6 +759,7 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
                                  fault_pa);
     return;
   }
+
 
   const auto ept_entry = EptGetEptPtEntry(ept_data, fault_pa);
   if (ept_entry && ept_entry->all) {
@@ -904,9 +914,8 @@ void EptFixOriginEpt(EptData* const EptData)
     /*
     * 对原来正常的ept打补丁
     */
-#if 1
-    DbgBreakPoint();
-#endif
+
+
     //这里要左移12，因为这里的物理地址是已经页对齐的
 #ifdef HOOK_SYSCALL
     auto ept_entry = EptGetEptPtEntry(EptData, SystemCallFake.fp.GuestPA.QuadPart);
@@ -918,13 +927,14 @@ void EptFixOriginEpt(EptData* const EptData)
 #ifdef SERVICE_HOOK
     for (auto& service_hook : vServcieHook)
     {
+        if (!service_hook.isEverythignSuc)
+            continue;
         auto ept_entry = EptGetEptPtEntry(EptData, service_hook.fp.GuestPA.QuadPart);
         ept_entry->fields.read_access = 0;
         ept_entry->fields.write_access = 0;
         ept_entry->fields.execute_access = 1;
     }
 #endif // SERVICE_HOOK
-
 
 
 }

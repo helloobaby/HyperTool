@@ -8,6 +8,7 @@ struct ServiceHook : ICFakePage
 	virtual void Destruct() override;
 	PVOID DetourFunc;
 	PVOID *TrampolineFunc;
+	ULONG HookCodeLen;
 	bool isEverythignSuc = false;
 };
 

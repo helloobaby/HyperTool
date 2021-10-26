@@ -48,7 +48,12 @@ NTSTATUS InitSystemVar()
 	aSYSTEM_SERVICE_DESCRIPTOR_TABLE = 
 	(SYSTEM_SERVICE_DESCRIPTOR_TABLE*)(OffsetKeServiceDescriptorTable + KernelBase);
 
+#ifdef HOOK_SYSCALL
+
 	SystemCallFake.Construct();
+
+#endif // HOOK_SYSCALL
+
 
 	return STATUS_SUCCESS;
 }
