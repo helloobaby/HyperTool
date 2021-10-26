@@ -712,9 +712,6 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
 #ifdef SERVICE_HOOK
   for (auto& service_hook : vServcieHook)
   {
-#if 0
-      DbgBreakPoint();
-#endif
       if (!service_hook.isEverythignSuc)
           continue;
 

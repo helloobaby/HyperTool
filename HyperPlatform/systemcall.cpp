@@ -111,9 +111,6 @@ void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
 	if (!SysCallCount) {
 		Log("[SysCallCount]at %p\n", &SysCallCount);
 		Log("[SYSCALL]%s\nIndex %x\nTarget %llx\n", GetSyscallProcess(), SSDT_INDEX, GetSSDTEntry(SSDT_INDEX));
-#if 0
-		DbgBreakPoint();
-#endif
 	}
 	InterlockedAdd64(&SysCallCount, 1);
 #endif

@@ -13,6 +13,7 @@ using std::vector;
 vector<ServiceHook> vServcieHook;
 hde64s gIns;
 
+#pragma optimize( "", off )
 void ServiceHook::Construct()
 {
 	if (!this->DetourFunc || !this->TrampolineFunc || !this->fp.GuestVA)
@@ -58,7 +59,7 @@ void ServiceHook::Construct()
 	size_t CodeLength = 0;
 	while (CodeLength < 12)
 	{
-		HdeDisassemble((void*)((ULONG_PTR)(this->DetourFunc) + CodeLength), &gIns);
+		HdeDisassemble((void*)((ULONG_PTR)(this->fp.GuestVA) + CodeLength), &gIns);
 		CodeLength += gIns.len;
 	}
 	this->HookCodeLen = CodeLength;
@@ -74,9 +75,10 @@ void ServiceHook::Construct()
 		Log("ExAllocatePoolWithTag failed ,no memory!\n");
 		return;
 	}
+	
 	memcpy(*(this->TrampolineFunc), this->fp.GuestVA, CodeLength);
 	static char hook2[] = { 0xff,0x25,0,0,0,0,1,1,1,1,1,1,1,1 };
-	ULONG_PTR jmp_return = (ULONG_PTR)this->fp.GuestVA + CodeLength - 1;
+	ULONG_PTR jmp_return = (ULONG_PTR)this->fp.GuestVA + CodeLength;
 	memcpy(hook2 + 6, &jmp_return, 8);
 	memcpy((void*)((ULONG_PTR)(*(this->TrampolineFunc)) + CodeLength), hook2, 14);
 	auto irql = WPOFFx64();
@@ -94,6 +96,7 @@ void ServiceHook::Construct()
 	this->isEverythignSuc = true;
 
 }
+#pragma optimize( "", on )
 
 void ServiceHook::Destruct()
 {
@@ -107,9 +110,11 @@ void ServiceHook::Destruct()
 		return;
 	}
 #endif
+	auto Exclu = ExclGainExclusivity();
 	auto irql = WPOFFx64();
 	memcpy(this->fp.GuestVA, *(this->TrampolineFunc), this->HookCodeLen);
 	WPONx64(irql);
+	ExclReleaseExclusivity(Exclu);
 	ExFreePool(*(this->TrampolineFunc));
 
 }
@@ -132,8 +137,9 @@ void RemoveServiceHook()
 	}
 }
 
-
-//example
+//
+//hook example
+//
 
 NTSTATUS DetourNtOpenProcess(
 	PHANDLE            ProcessHandle,
@@ -144,8 +150,39 @@ NTSTATUS DetourNtOpenProcess(
 {
 	static int once =0;
 	if(!(once++))
-	Log("hello world\n");
-
+	Log("%s\n",__func__);
 
 	return OriNtOpenProcess(ProcessHandle, DesiredAccess, ObjectAttributes, ClientId);
+}
+
+NTSTATUS DetourNtCreateFile(
+	PHANDLE            FileHandle,
+	ACCESS_MASK        DesiredAccess,
+	POBJECT_ATTRIBUTES ObjectAttributes,
+	PIO_STATUS_BLOCK   IoStatusBlock,
+	PLARGE_INTEGER     AllocationSize,
+	ULONG              FileAttributes,
+	ULONG              ShareAccess,
+	ULONG              CreateDisposition,
+	ULONG              CreateOptions,
+	PVOID              EaBuffer,
+	ULONG              EaLength
+)
+{
+	static int once = 0;
+	if (!(once++))
+		Log("%s\n", __func__);
+
+	return OriNtCreateFile(
+		FileHandle,
+		DesiredAccess,
+		ObjectAttributes,
+		IoStatusBlock,
+		AllocationSize,
+		FileAttributes,
+		ShareAccess,
+		CreateDisposition,
+		CreateOptions,
+		EaBuffer,
+		EaLength);
 }
