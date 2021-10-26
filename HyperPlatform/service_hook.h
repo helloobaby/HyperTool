@@ -39,6 +39,9 @@ __kernel_entry NTSYSCALLAPI NTSTATUS NtOpenProcess(
 using NtOpenProcessType = decltype(&NtOpenProcess);
 using NtCreateFileType = decltype(&NtCreateFile);
 
+//
+//必须保证你这个要hook的函数在给rax赋值之前不使用rax，因为我们使用rax作为跳板
+//
 void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline);
 
 void RemoveServiceHook();
