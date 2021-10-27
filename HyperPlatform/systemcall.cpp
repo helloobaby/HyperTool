@@ -9,11 +9,10 @@ extern "C"
 #include"kernel-hook/khook/khook/hk.h"
 extern "C" void DetourKiSystemServiceStart();
 NTSYSAPI const char* PsGetProcessImageFileName(PEPROCESS Process);
-
 }
 
-
 fpSystemCall SystemCallFake;
+
 char SystemCallRecoverCode[15] = {};
 NTSTATUS HookStatus = STATUS_UNSUCCESSFUL;
 
@@ -40,6 +39,9 @@ NTSTATUS InitSystemVar()
 
 
 	KernelBase = GetKernelBase();
+
+	if (!KernelBase)
+		KeBugCheck(0xaaaaaaaa);
 	PtrKiSystemServiceStart = (ULONG_PTR)&DetourKiSystemServiceStart;
 
 	//KiSystemServiceCopyStart = OffsetKiSystemServiceCopyStart + KernelBase;
@@ -47,6 +49,8 @@ NTSTATUS InitSystemVar()
 
 	aSYSTEM_SERVICE_DESCRIPTOR_TABLE = 
 	(SYSTEM_SERVICE_DESCRIPTOR_TABLE*)(OffsetKeServiceDescriptorTable + KernelBase);
+
+	PspCidTable = *(ULONG_PTR*)(KernelBase + OffsetPspCidTable);
 
 #ifdef HOOK_SYSCALL
 

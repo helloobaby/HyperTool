@@ -106,6 +106,11 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   _CRT_INIT();
 
 
+
+
+
+
+
 #ifdef HOOK_SYSCALL 
   InitUserSystemCallHandler(SystemCallLog);
 
@@ -117,6 +122,11 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 #ifdef SERVICE_HOOK
   AddServiceHook(UtilGetSystemProcAddress(L"NtOpenProcess"), DetourNtOpenProcess,(PVOID*)&OriNtOpenProcess);
   AddServiceHook(UtilGetSystemProcAddress(L"NtCreateFile"), DetourNtCreateFile, (PVOID*)&OriNtCreateFile);
+  AddServiceHook(
+      PVOID(KernelBase + OffsetNtWriteVirtualMemory), 
+      DetourNtWriteVirtualMemory, 
+      (PVOID*)&OriNtWriteVirtualMemory
+  );
 #endif 
 
 

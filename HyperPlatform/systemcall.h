@@ -18,7 +18,7 @@ extern "C"
 {
 	inline const ULONG KernelSize = 0xa6e000; //hard signature
 	inline ULONG_PTR KernelBase = NULL;
-
+	inline ULONG_PTR PspCidTable;
 
 	inline ULONG_PTR KiSystemServiceStart = NULL;
 	inline ULONG_PTR PtrKiSystemServiceStart = NULL;

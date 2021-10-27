@@ -87,6 +87,9 @@
     <ClCompile Include="service_hook.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="include\handle.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asm.h">
@@ -189,6 +192,9 @@
       <Filter>STL</Filter>
     </ClInclude>
     <ClInclude Include="service_hook.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\handle.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

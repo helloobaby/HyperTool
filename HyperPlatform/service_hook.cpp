@@ -4,15 +4,19 @@
 #include"include/exclusivity.h"
 #include"include/write_protect.h"
 #include"kernel-hook/khook/hde/hde.h"
+#include"include/handle.h"
+#include"include/PDBSDK.h"
 extern "C"
 {
 #include"kernel-hook/khook/khook/hk.h"
+extern ULONG_PTR KernelBase;
+extern ULONG_PTR PspCidTable;
 }
+
 
 using std::vector; 
 vector<ServiceHook> vServcieHook;
 hde64s gIns;
-
 #pragma optimize( "", off )
 void ServiceHook::Construct()
 {
@@ -148,9 +152,13 @@ NTSTATUS DetourNtOpenProcess(
 	PCLIENT_ID         ClientId
 )
 {
-	static int once =0;
-	if(!(once++))
-	Log("%s\n",__func__);
+#ifdef DBG
+
+	static int once = 0;
+	if (!(once++))
+		Log("%s\n", __func__);
+
+#endif // DBG
 
 	return OriNtOpenProcess(ProcessHandle, DesiredAccess, ObjectAttributes, ClientId);
 }
@@ -169,9 +177,11 @@ NTSTATUS DetourNtCreateFile(
 	ULONG              EaLength
 )
 {
+#ifdef DBG
 	static int once = 0;
 	if (!(once++))
 		Log("%s\n", __func__);
+#endif // DBG
 
 	return OriNtCreateFile(
 		FileHandle,
@@ -185,4 +195,61 @@ NTSTATUS DetourNtCreateFile(
 		CreateOptions,
 		EaBuffer,
 		EaLength);
+}
+
+//
+//监视用户态内存写入
+//
+NTSTATUS DetourNtWriteVirtualMemory(
+	IN HANDLE ProcessHandle,
+	OUT PVOID BaseAddress,
+	IN CONST VOID* Buffer,
+	IN SIZE_T BufferSize,
+	OUT PSIZE_T NumberOfBytesWritten OPTIONAL
+)
+{
+#ifdef DBG
+	static int once = 0;
+	if (!(once++))
+		Log("%s\n", __func__);
+#endif // DBG
+
+	NTSTATUS Status STATUS_UNSUCCESSFUL;
+	//DbgBreakPoint();
+
+	PEPROCESS Process = NULL;
+	Status = ObReferenceObjectByHandle(ProcessHandle,
+		PROCESS_VM_WRITE,
+		*PsProcessType,
+		UserMode,
+		(PVOID*)&Process,
+		NULL);
+
+	if (Process)
+	{
+		unsigned char* Image = PsGetProcessImageFileName(Process);
+#if 0
+		Log("[w]%s Image\n",Image);
+#endif // DBG
+	
+		if (!strcmp((const char*)Image, "Dbgview.exe"))
+		{
+			
+			
+		}
+
+
+
+
+
+
+
+
+	}
+	return OriNtWriteVirtualMemory(
+		ProcessHandle,
+		BaseAddress,
+		Buffer,
+		BufferSize,
+		NumberOfBytesWritten);
 }
