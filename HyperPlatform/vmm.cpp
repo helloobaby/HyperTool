@@ -497,6 +497,15 @@ _Use_decl_annotations_ static void VmmpHandleException(
           UtilVmRead(VmcsField::kVmExitInstructionLen);
       UtilVmWrite(VmcsField::kVmEntryInstructionLen, exit_inst_length);
 
+      /*
+      * Q:思考一下如果不给客户机注入int3会发生什么事情？
+      * A:guest -> int3 -> vmm -> #bp handler 如果handler不调整guest rip的话，guest就会一直执行int3
+      */
+#if 0 //如果调用VmmpInjectInterruption注入异常，那么guest的rip就由guest来调整，也就是vmm不干涉，这样是比较理想的。
+      VmmpAdjustGuestInstructionPointer(guest_context);
+#endif 
+
+
     } else {
       HYPERPLATFORM_COMMON_BUG_CHECK(HyperPlatformBugCheck::kUnspecified, 0, 0,
                                      0);

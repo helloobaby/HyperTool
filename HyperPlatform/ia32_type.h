@@ -770,7 +770,7 @@ enum class VmcsField : unsigned __int32 {
   kVmEntryMsrLoadCount = 0x00004014,
   kVmEntryIntrInfoField = 0x00004016,
   kVmEntryExceptionErrorCode = 0x00004018,
-  kVmEntryInstructionLen = 0x0000401a,
+  kVmEntryInstructionLen = 0x0000401a,//处理器虚拟化技术p217
   kTprThreshold = 0x0000401c,
   kSecondaryVmExecControl = 0x0000401e,
   kPleGap = 0x00004020,
