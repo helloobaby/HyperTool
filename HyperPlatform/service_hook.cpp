@@ -6,12 +6,24 @@
 #include"kernel-hook/khook/hde/hde.h"
 #include"include/handle.h"
 #include"include/PDBSDK.h"
+#include"common.h"
+
 extern "C"
 {
 #include"kernel-hook/khook/khook/hk.h"
 extern ULONG_PTR KernelBase;
 extern ULONG_PTR PspCidTable;
 }
+
+const char* test_process = "Dbgview.exe";
+
+const char* target_process = "csgo.exe";
+
+//还有个快捷方式，如果需要测试的话
+//
+//#define target_process test_process
+//
+
 
 
 using std::vector; 
@@ -28,13 +40,32 @@ void ServiceHook::Construct()
 		return;
 	}
 
-#if 0
-	NTSTATUS Status = HkDetourFunction((this->fp).GuestVA, this->DetourFunc, this->TrampolineFunc);
 
-	if (!NT_SUCCESS(Status)) {
-		Log("HkDetourFunction Failed %x\n", Status);
-		return;
-	}
+#if 1
+	/**
+	* Q:MmGetPhysicalAddress(NtCreateThread)返回的物理地址为0
+	*   MmGetPhysicalAddress(NtCreateThreadEx)返回的物理地址不为0
+	* 
+	* A:
+	* 1: kd> u ntcreatethread
+	nt!NtCreateThread:
+	fffff807`1a6948f0 ??              ???
+
+
+	1: kd> !pte fffff807`1a6948f0
+										   VA fffff8071a6948f0
+	PXE at FFFFFCFE7F3F9F80    PPE at FFFFFCFE7F3F00E0    PDE at FFFFFCFE7E01C698    PTE at FFFFFCFC038D34A0
+	contains 0000000001208063  contains 0000000001209063  contains 0000000001217063  contains 0000EACE00002064
+	pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV  not valid
+																				  PageFile:  2
+																				  Offset: cace
+																				  Protect: 3 - ExecuteRead
+	现在win10很多函数支持分页。
+	显然暴露一个问题，如果这个代码页分页了，MmGetPhysicalAddress必然得返回0，而且改物理内存还有什么意义？
+
+	*/
+
+
 #endif
 
 	//获得指定函数所在页的开始处
@@ -42,12 +73,23 @@ void ServiceHook::Construct()
 	//GuestPA为GuestVA这个页面起始的物理地址
 	//GuestVA必须初始化后不能改变
 	this->fp.GuestPA = MmGetPhysicalAddress(tmp);
+#if 1 //提供分页函数支持
+	if (!pfMmAccessFault)
+		pfMmAccessFault = (MmAccessFaultType)(KernelBase + OffsetMmAccessFault);
+
+	if (!this->fp.GuestPA.QuadPart)
+	{
+		pfMmAccessFault(1, this->fp.GuestVA, KernelMode, NULL);
+		//再提供一次机会
+		this->fp.GuestPA = MmGetPhysicalAddress(tmp);
+	}
+#endif
 	this->fp.PageContent = ExAllocatePoolWithQuota(NonPagedPool, PAGE_SIZE);
 	memcpy(this->fp.PageContent, tmp, PAGE_SIZE);
 	this->fp.PageContentPA = MmGetPhysicalAddress(this->fp.PageContent);
 	if (!fp.GuestPA.QuadPart || !fp.PageContentPA.QuadPart)
 	{
-		HkRestoreFunction((this->fp).GuestVA, this->TrampolineFunc);
+		HYPERPLATFORM_COMMON_DBG_BREAK();
 		Log("MmGetPhysicalAddress error %s %d\n",__func__,__LINE__);
 		return;
 	}
@@ -115,6 +157,12 @@ void ServiceHook::Destruct()
 	}
 #endif
 	auto Exclu = ExclGainExclusivity();
+	//
+	//这里要判断一下GuestVA是不是换页状态
+	//不能在提irql完再MmAccessFault
+	//
+	pfMmAccessFault(1, this->fp.GuestVA, KernelMode, NULL);
+
 	auto irql = WPOFFx64();
 	memcpy(this->fp.GuestVA, *(this->TrampolineFunc), this->HookCodeLen);
 	WPONx64(irql);
@@ -215,7 +263,6 @@ NTSTATUS DetourNtWriteVirtualMemory(
 #endif // DBG
 
 	NTSTATUS Status STATUS_UNSUCCESSFUL;
-	//DbgBreakPoint();
 
 	PEPROCESS Process = NULL;
 	Status = ObReferenceObjectByHandle(ProcessHandle,
@@ -228,14 +275,10 @@ NTSTATUS DetourNtWriteVirtualMemory(
 	if (Process)
 	{
 		unsigned char* Image = PsGetProcessImageFileName(Process);
-#if 0
-		Log("[w]%s Image\n",Image);
-#endif // DBG
-	
-		if (!strcmp((const char*)Image, "Dbgview.exe"))
+
+		if (!strcmp((const char*)Image, target_process))
 		{
-			
-			
+			Log("[%s]\nBaseAddress %llx BufferSize %llx\n",__func__, BaseAddress, BufferSize);
 		}
 
 
@@ -252,4 +295,172 @@ NTSTATUS DetourNtWriteVirtualMemory(
 		Buffer,
 		BufferSize,
 		NumberOfBytesWritten);
+}
+
+NTSTATUS DetourNtCreateThreadEx(
+	OUT PHANDLE hThread,
+	IN ACCESS_MASK DesiredAccess,
+	IN PVOID ObjectAttributes,
+	IN HANDLE ProcessHandle,
+	IN PVOID lpStartAddress,
+	IN PVOID lpParameter,
+	IN ULONG Flags,
+	IN SIZE_T StackZeroBits,
+	IN SIZE_T SizeOfStackCommit,
+	IN SIZE_T SizeOfStackReserve,
+	OUT PVOID lpBytesBuffer)
+{
+#ifdef DBG
+	static int once = 0;
+	if (!(once++))
+		Log("%s\n", __func__);
+#endif // DBG
+
+	NTSTATUS Status STATUS_UNSUCCESSFUL;
+
+	PEPROCESS Process = NULL;
+	Status = ObReferenceObjectByHandle(ProcessHandle,
+		PROCESS_VM_WRITE,
+		*PsProcessType,
+		UserMode,
+		(PVOID*)&Process,
+		NULL);
+
+	if (Process)
+	{
+		unsigned char* Image = PsGetProcessImageFileName(Process);
+		const unsigned char* Image2 = PsGetProcessImageFileName(IoGetCurrentProcess());
+
+		if (!strcmp((const char*)Image, target_process) && strcmp((const char*)Image2, target_process))
+		{
+			Log("[csgo]\nThreadProcedure %llx\n", lpStartAddress);
+
+			if (lpParameter)
+				Log("lpParameter value is %llx\n", lpParameter);
+
+
+		}
+
+
+	}
+	
+
+	return OriNtCreateThreadEx(
+		hThread, 
+		DesiredAccess,
+		ObjectAttributes, 
+		ProcessHandle,
+		lpStartAddress,
+		lpParameter,
+		Flags,
+		StackZeroBits, 
+		SizeOfStackCommit, 
+		SizeOfStackReserve,
+		lpBytesBuffer);
+}
+
+//监控内存分配
+NTSTATUS DetourNtAllocateVirtualMemory(
+	HANDLE    ProcessHandle,
+	PVOID* BaseAddress,
+	ULONG_PTR ZeroBits,
+	PSIZE_T   RegionSize,
+	ULONG     AllocationType,
+	ULONG     Protect
+)
+{
+#ifdef DBG
+	static int once = 0;
+	if (!(once++))
+		Log("%s\n", __func__);
+#endif // DBG
+
+	NTSTATUS Status STATUS_UNSUCCESSFUL;
+
+	PEPROCESS Process = NULL;
+	Status = ObReferenceObjectByHandle(ProcessHandle,
+		PROCESS_VM_WRITE,
+		*PsProcessType,
+		UserMode,
+		(PVOID*)&Process,
+		NULL);
+
+	if (Process)
+	{
+		unsigned char* Image = PsGetProcessImageFileName(Process);
+		const unsigned char* Image2 = PsGetProcessImageFileName(IoGetCurrentProcess());
+		if (!strcmp((const char*)Image, target_process) && strcmp((const char*)Image2, target_process))
+		{
+			Log("[%s]\nAlloc RegionSize %p\n", __func__, *RegionSize);
+		}
+
+
+	}
+
+
+
+
+
+
+	return OriNtAllocateVirtualMemory(
+		ProcessHandle,
+		BaseAddress,
+		ZeroBits,
+		RegionSize,
+		AllocationType,
+		Protect);
+}
+
+
+NTSTATUS DetourNtCreateThread(
+	OUT PHANDLE ThreadHandle,
+	IN  ACCESS_MASK DesiredAccess,
+	IN  POBJECT_ATTRIBUTES ObjectAttributes OPTIONAL,
+	IN  HANDLE ProcessHandle,
+	OUT PCLIENT_ID ClientId,
+	IN  PCONTEXT ThreadContext,
+	IN  PVOID InitialTeb,
+	IN  BOOLEAN CreateSuspended
+)
+{
+#ifdef DBG
+	static int once = 0;
+	if (!(once++))
+		Log("%s\n", __func__);
+#endif // DBG
+
+
+	NTSTATUS Status STATUS_UNSUCCESSFUL;
+
+	PEPROCESS Process = NULL;
+	Status = ObReferenceObjectByHandle(ProcessHandle,
+		PROCESS_VM_WRITE,
+		*PsProcessType,
+		UserMode,
+		(PVOID*)&Process,
+		NULL);
+
+	if (Process)
+	{
+		unsigned char* Image = PsGetProcessImageFileName(Process);
+		const unsigned char* Image2 = PsGetProcessImageFileName(IoGetCurrentProcess());
+
+		if (!strcmp((const char*)Image, target_process) && strcmp((const char*)Image2, target_process))
+		{
+			Log("[%s]\nThreadProcedure %llx\n",__func__ ,ThreadContext->Rcx);
+		}
+
+
+	}
+
+	return OriNtCreateThread(
+		ThreadHandle,
+		DesiredAccess,
+		ObjectAttributes,
+		ProcessHandle,
+		ClientId,
+		ThreadContext,
+		InitialTeb,
+		CreateSuspended
+	);
 }

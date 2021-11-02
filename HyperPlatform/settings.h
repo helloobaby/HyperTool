@@ -13,7 +13,7 @@
 //
 //¿ªÆôÄÚºËº¯Êýhook
 //
-//#define SERVICE_HOOK
+#define SERVICE_HOOK
 
 
 
