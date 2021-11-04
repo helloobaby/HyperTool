@@ -15,6 +15,9 @@ extern ULONG_PTR KernelBase;
 extern ULONG_PTR PspCidTable;
 }
 
+#define PAGE_FAULT_READ 0
+
+
 const char* test_process = "Dbgview.exe";
 
 const char* target_process = "csgo.exe";
@@ -29,6 +32,10 @@ const char* target_process = "csgo.exe";
 using std::vector; 
 vector<ServiceHook> vServcieHook;
 hde64s gIns;
+
+
+
+
 #pragma optimize( "", off )
 void ServiceHook::Construct()
 {
@@ -52,16 +59,15 @@ void ServiceHook::Construct()
 	fffff807`1a6948f0 ??              ???
 
 
-	1: kd> !pte fffff807`1a6948f0
+0: kd> !pte fffff807`1a6948f0
 										   VA fffff8071a6948f0
-	PXE at FFFFFCFE7F3F9F80    PPE at FFFFFCFE7F3F00E0    PDE at FFFFFCFE7E01C698    PTE at FFFFFCFC038D34A0
-	contains 0000000001208063  contains 0000000001209063  contains 0000000001217063  contains 0000EACE00002064
-	pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV  not valid
+PXE at FFFFFCFE7F3F9F80    PPE at FFFFFCFE7F3F00E0    PDE at FFFFFCFE7E01C698    PTE at FFFFFCFC038D34A0
+contains 0000000001208063  contains 0000000001209063  contains 0000000001217063  contains 0000FEF300002064
+pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV  not valid
 																				  PageFile:  2
-																				  Offset: cace
+																				  Offset: def3
 																				  Protect: 3 - ExecuteRead
-	现在win10很多函数支持分页。
-	显然暴露一个问题，如果这个代码页分页了，MmGetPhysicalAddress必然得返回0，而且改物理内存还有什么意义？
+	其实这里的分页就是现代操作系统的内存压缩。
 
 	*/
 
@@ -79,7 +85,7 @@ void ServiceHook::Construct()
 
 	if (!this->fp.GuestPA.QuadPart)
 	{
-		pfMmAccessFault(1, this->fp.GuestVA, KernelMode, NULL);
+		pfMmAccessFault(PAGE_FAULT_READ, this->fp.GuestVA, KernelMode, NULL);
 		//再提供一次机会
 		this->fp.GuestPA = MmGetPhysicalAddress(tmp);
 	}
@@ -158,10 +164,17 @@ void ServiceHook::Destruct()
 #endif
 	auto Exclu = ExclGainExclusivity();
 	//
-	//这里要判断一下GuestVA是不是换页状态
+	//这里要判断一下GuestVA是不是页无效状态
 	//不能在提irql完再MmAccessFault
 	//
-	pfMmAccessFault(1, this->fp.GuestVA, KernelMode, NULL);
+	if(!MmIsAddressValid(this->fp.GuestVA))
+	pfMmAccessFault(PAGE_FAULT_READ, this->fp.GuestVA, KernelMode, NULL);
+
+	if (!MmIsAddressValid(this->fp.GuestVA))
+	{
+		Log("[fatal error]Page cant go in memory!\n");
+		return;
+	}
 
 	auto irql = WPOFFx64();
 	memcpy(this->fp.GuestVA, *(this->TrampolineFunc), this->HookCodeLen);
