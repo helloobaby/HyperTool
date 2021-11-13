@@ -13,6 +13,7 @@ extern "C"
 #include"kernel-hook/khook/khook/hk.h"
 extern ULONG_PTR KernelBase;
 extern ULONG_PTR PspCidTable;
+extern ULONG_PTR Win32kfullBase;
 }
 
 #define PAGE_FAULT_READ 0
@@ -33,12 +34,82 @@ using std::vector;
 vector<ServiceHook> vServcieHook;
 hde64s gIns;
 
-
-
+static bool init = false;
+vector<MM_SESSION_SPACE*> vSesstionSpace;
 
 #pragma optimize( "", off )
 void ServiceHook::Construct()
 {
+
+	if (!pfMiGetSystemRegionType)
+		pfMiGetSystemRegionType = (MiGetSystemRegionTypeType)(KernelBase + OffsetMiGetSystemRegionType);
+
+	if (!pfMmGetSessionById)
+		pfMmGetSessionById = (MmGetSessionByIdType)(KernelBase + OffsetMmGetSessionById);
+	
+	//引入一个bool init，来做只需要一次的初始化工作
+	if (!init) {
+
+		pfMiAttachSession = (MiAttachSessionType)(KernelBase + OffsetMiAttachSession);
+		pfMiDetachProcessFromSession = (MiDetachProcessFromSessionType)(KernelBase + OffsetMiDetachProcessFromSession);
+
+		//
+		for (int i = 0; i < 1000; i++)
+		{
+			PEPROCESS Process = pfMmGetSessionById(i);
+			if (Process)
+			{
+				SystemSesstionSpace = *(MM_SESSION_SPACE**)((ULONG_PTR)Process + 0x400);
+				vSesstionSpace.push_back(SystemSesstionSpace);
+
+			}
+		}
+		//
+
+
+
+#ifdef DBG
+		for (auto session : vSesstionSpace)
+		{
+			Log("Session ID %d\n", session->SessionId);
+
+			//起始地址和结束地址基本都一样
+			Log("PagedPoolStart %p\n", session->PagedPoolStart);
+			Log("PagedPoolEnd %p\n", session->PagedPoolEnd);
+		}
+#endif // DBG
+
+		
+
+		init = true;
+	}
+#if 0
+	for (int i = 8;;)
+	{
+		//排除system进程和idle进程
+		PEPROCESS process = (PEPROCESS)GetObject10((PHANDLE_TABLE10)PspCidTable, i);
+		//遍历session
+		SystemSesstionSpace = *(MM_SESSION_SPACE**)((ULONG_PTR)process + 0x400);
+
+		//如果存在session
+		if (SystemSesstionSpace) {
+			ULONG32 SystemSesstionID = SystemSesstionSpace->SessionId;
+			PVOID SystemSesstionPoolStart = SystemSesstionSpace->PagedPoolStart;
+			PVOID SystemSesstionPoolEnd = SystemSesstionSpace->PagedPoolEnd;
+		}
+	}
+#endif
+
+	for (auto Session : vSesstionSpace)
+	{
+		if (this->fp.GuestVA == PVOID(Win32kfullBase + OffsetNtUserFindWindowEx))
+		{
+			this->isWin32Hook = true;
+		}
+
+
+	}
+
 	if (!this->DetourFunc || !this->TrampolineFunc || !this->fp.GuestVA)
 	{
 		Log("DetourFunc or TrampolineFunc or fp.GuestVA is null!\n");
@@ -78,6 +149,13 @@ pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV 
 	auto tmp = (PVOID)(((ULONG_PTR)(this->fp).GuestVA >> 12) << 12);
 	//GuestPA为GuestVA这个页面起始的物理地址
 	//GuestVA必须初始化后不能改变
+#if 0
+	if(this->fp.GuestVA == (PVOID)0xfffff80725d288f0)
+	DbgBreakPoint();
+#endif
+	//
+	//如果pte.vaild为0，MmGetPhysicalAddress返回0
+	//
 	this->fp.GuestPA = MmGetPhysicalAddress(tmp);
 #if 1 //提供分页函数支持
 	if (!pfMmAccessFault)
@@ -85,14 +163,39 @@ pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV 
 
 	if (!this->fp.GuestPA.QuadPart)
 	{
-		pfMmAccessFault(PAGE_FAULT_READ, this->fp.GuestVA, KernelMode, NULL);
+
+#if 0  //获得当前地址所在的POOL_TYPE
+		auto RegionType = pfMiGetSystemRegionType((ULONG_PTR)this->fp.GuestVA);
+#endif
+		ASSERT(KeGetCurrentIrql() < DISPATCH_LEVEL);
+
+		//
+		//MmAccessFault换页换不出来，下面从这个页面拷贝的时候，系统会帮我们换出来
+		//MmAccessFault有时候还会蓝屏,比如换NtUserFindWindowEx所在页
+		//
+		
+		//pfMmAccessFault(PAGE_FAULT_READ, nullptr, this->fp.GuestVA, KernelMode);
+		
 		//再提供一次机会
-		this->fp.GuestPA = MmGetPhysicalAddress(tmp);
+		//this->fp.GuestPA = MmGetPhysicalAddress(tmp);
 	}
 #endif
 	this->fp.PageContent = ExAllocatePoolWithQuota(NonPagedPool, PAGE_SIZE);
+
+	//拷贝原先页面,拷贝的时候每个页面的内容都一样，写的时候就要分别写了。
+	if (this->isWin32Hook) {
+		pfMiAttachSession(vSesstionSpace[0]);
+	}
 	memcpy(this->fp.PageContent, tmp, PAGE_SIZE);
+
+
+	
+
 	this->fp.PageContentPA = MmGetPhysicalAddress(this->fp.PageContent);
+
+	//等待操作系统帮我们换页完，我们在获取
+	this->fp.GuestPA = MmGetPhysicalAddress(tmp);
+
 	if (!fp.GuestPA.QuadPart || !fp.PageContentPA.QuadPart)
 	{
 		HYPERPLATFORM_COMMON_DBG_BREAK();
@@ -144,6 +247,8 @@ pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV 
 
 	ExclReleaseExclusivity(exclusivity);
 
+	if (this->isWin32Hook)
+		pfMiDetachProcessFromSession(1);
 
 	this->isEverythignSuc = true;
 
@@ -162,24 +267,22 @@ void ServiceHook::Destruct()
 		return;
 	}
 #endif
+
+	if (this->isWin32Hook)
+		pfMiAttachSession(vSesstionSpace[0]);
+	//这部分代码仅仅是让分页的内存换进来，下面禁用线程切换就换不了了
+	char tmp[1];
+	memcpy(tmp, this->fp.GuestVA, 1);
+	//
 	auto Exclu = ExclGainExclusivity();
-	//
-	//这里要判断一下GuestVA是不是页无效状态
-	//不能在提irql完再MmAccessFault
-	//
-	if(!MmIsAddressValid(this->fp.GuestVA))
-	pfMmAccessFault(PAGE_FAULT_READ, this->fp.GuestVA, KernelMode, NULL);
-
-	if (!MmIsAddressValid(this->fp.GuestVA))
-	{
-		Log("[fatal error]Page cant go in memory!\n");
-		return;
-	}
-
 	auto irql = WPOFFx64();
 	memcpy(this->fp.GuestVA, *(this->TrampolineFunc), this->HookCodeLen);
 	WPONx64(irql);
 	ExclReleaseExclusivity(Exclu);
+
+	if (this->isWin32Hook)
+		pfMiDetachProcessFromSession(1);
+
 	ExFreePool(*(this->TrampolineFunc));
 
 }
@@ -476,4 +579,49 @@ NTSTATUS DetourNtCreateThread(
 		InitialTeb,
 		CreateSuspended
 	);
+}
+/*
+hook win32k 函数的注意事项
+
+00 ffffdd07`2186d780 fffff807`255490fb     nt!MiAttachSession+0x6c
+01 ffffdd07`2186d7d0 fffff807`255c7675     nt!MiTrimOrAgeWorkingSet+0x77b
+02 ffffdd07`2186d8b0 fffff807`255c6056     nt!MiProcessWorkingSets+0x255
+03 ffffdd07`2186da60 fffff807`25620c17     nt!MiWorkingSetManager+0xaa
+04 ffffdd07`2186db20 fffff807`254dfa45     nt!KeBalanceSetManager+0x147
+05 ffffdd07`2186dc10 fffff807`2565cb8c     nt!PspSystemThreadStartup+0x55
+06 ffffdd07`2186dc60 00000000`00000000     nt!KiStartSystemThread+0x1c
+
+
+*/
+
+HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
+	IN HWND hwndParent,
+	IN HWND hwndChild,
+	IN PUNICODE_STRING pstrClassName,
+	IN PUNICODE_STRING pstrWindowName)
+{
+#if 0
+	if(pstrWindowName->Buffer)
+		Log("[%s]%ws\n", __func__, pstrWindowName->Buffer);
+
+	if (pstrClassName->Buffer)
+		Log("[%s]%ws\n",__func__ ,pstrClassName->Buffer);
+#endif // DBG
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	return OriNtUserFindWindowEx(hwndParent, hwndChild, pstrClassName, pstrWindowName);
 }

@@ -139,6 +139,10 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       DetourNtCreateThread,
       (PVOID*)&OriNtCreateThread);
 
+  AddServiceHook(PVOID(Win32kfullBase + OffsetNtUserFindWindowEx),
+      DetourNtUserFindWindowEx,
+      (PVOID*)&OriNtUserFindWindowEx);
+
 #endif 
 
 
@@ -294,7 +298,7 @@ _Use_decl_annotations_ bool DriverpIsSuppoetedOS() {
     return false;
   }
   // 4-gigabyte tuning (4GT) should not be enabled
-  if (!IsX64() &&
+  if (!IsX64() && 
       reinterpret_cast<ULONG_PTR>(MmSystemRangeStart) != 0x80000000) {
     return false;
   }

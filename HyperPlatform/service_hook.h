@@ -2,6 +2,8 @@
 #include"include/vector.hpp"
 #include"FakePage.h"
 
+typedef HANDLE  HWND;
+
 #define PROCESS_TERMINATE                  (0x0001)  
 #define PROCESS_CREATE_THREAD              (0x0002)  
 #define PROCESS_SET_SESSIONID              (0x0004)  
@@ -17,6 +19,26 @@
 #define PROCESS_QUERY_LIMITED_INFORMATION  (0x1000)  
 #define PROCESS_SET_LIMITED_INFORMATION    (0x2000)  
 
+typedef struct _MM_SESSION_SPACE                      // 50 elements, 0x5000 bytes (sizeof) 
+{
+	/*0x000*/      LONG32       ReferenceCount;
+	union                                             // 2 elements, 0x4 bytes (sizeof)     
+	{
+		/*0x004*/          ULONG32      LongFlags;  
+	}u;
+	/*0x008*/      ULONG32      SessionId;
+	/*0x00C*/      LONG32       ProcessReferenceToSession;
+	/*0x010*/      struct _LIST_ENTRY ProcessList;                   // 2 elements, 0x10 bytes (sizeof)    
+	/*0x020*/      UINT64       SessionPageDirectoryIndex;
+	/*0x028*/      UINT64       NonPagablePages;
+	/*0x030*/      UINT64       CommittedPages;
+	/*0x038*/      VOID* PagedPoolStart;
+	/*0x040*/      VOID* PagedPoolEnd;
+	/*0x048*/      VOID* SessionObject;
+	/*0x050*/      VOID* SessionObjectHandle;
+	/*0x058*/      ULONG32      SessionPoolAllocationFailures[4];
+}MM_SESSION_SPACE, * PMM_SESSION_SPACE;
+
 struct ServiceHook : public ICFakePage
 {
 	~ServiceHook() {};
@@ -26,6 +48,7 @@ struct ServiceHook : public ICFakePage
 	PVOID *TrampolineFunc;
 	ULONG HookCodeLen;
 	bool isEverythignSuc;
+	bool isWin32Hook = false;
 };
 
 
@@ -69,6 +92,12 @@ __kernel_entry NTSYSCALLAPI NTSTATUS NtOpenProcess(
 		 IN  BOOLEAN CreateSuspended
 	 );
 
+ HWND NtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
+	 IN HWND hwndParent,
+	 IN HWND hwndChild,
+	 IN PUNICODE_STRING pstrClassName,
+	 IN PUNICODE_STRING pstrWindowName);
+
 using NtCreateThreadExType = NTSTATUS(*)(
 	OUT PHANDLE hThread,
 	IN ACCESS_MASK DesiredAccess,
@@ -82,15 +111,18 @@ using NtCreateThreadExType = NTSTATUS(*)(
 	IN SIZE_T SizeOfStackReserve,
 	OUT PVOID lpBytesBuffer);
 
-//
-//这个函数原型有点古老了。
-//
+ULONG_PTR MiGetSystemRegionType(ULONG_PTR vaddress);
+
+PEPROCESS MmGetSessionById(int sessionId);
+NTSTATUS MiAttachSession(MM_SESSION_SPACE* SessionSpace);
+NTSTATUS MiDetachProcessFromSession(int SessionID);
+
 NTSTATUS
 MmAccessFault(
 	IN ULONG_PTR FaultStatus,
+	IN KTRAP_FRAME* TrapInformation,
 	IN PVOID VirtualAddress,
-	IN KPROCESSOR_MODE PreviousMode,
-	IN PVOID TrapInformation
+	IN KPROCESSOR_MODE PreviousMode
 );
 
 using NtOpenProcessType = decltype(&NtOpenProcess);
@@ -99,6 +131,11 @@ using NtWriteVirtualMemoryType = decltype(&NtWriteVirtualMemory);
 using NtAllocateVirtualMemoryType = decltype(&NtAllocateVirtualMemory);
 using NtCreateThreadType = decltype(&NtCreateThread);
 using MmAccessFaultType = decltype(&MmAccessFault);
+using NtUserFindWindowExType = decltype(&NtUserFindWindowEx);
+using MiGetSystemRegionTypeType = decltype(&MiGetSystemRegionType);
+using MmGetSessionByIdType = decltype(&MmGetSessionById);
+using MiAttachSessionType = decltype(&MiAttachSession);
+using MiDetachProcessFromSessionType = decltype(&MiDetachProcessFromSession);
 
 //
 //必须保证你这个要hook的函数在给rax赋值之前不使用rax，因为我们使用rax作为跳板
@@ -121,9 +158,13 @@ inline NtWriteVirtualMemoryType OriNtWriteVirtualMemory;
 inline NtCreateThreadExType OriNtCreateThreadEx;
 inline NtAllocateVirtualMemoryType OriNtAllocateVirtualMemory;
 inline NtCreateThreadType OriNtCreateThread;
-
+inline NtUserFindWindowExType OriNtUserFindWindowEx;
 inline MmAccessFaultType pfMmAccessFault;
-
+inline MiGetSystemRegionTypeType pfMiGetSystemRegionType;
+inline MmGetSessionByIdType pfMmGetSessionById;
+inline MM_SESSION_SPACE* SystemSesstionSpace;
+inline MiAttachSessionType pfMiAttachSession;
+inline MiDetachProcessFromSessionType pfMiDetachProcessFromSession;
 
 NTSTATUS DetourNtOpenProcess(
 	PHANDLE            ProcessHandle,
@@ -186,3 +227,9 @@ NTSTATUS DetourNtCreateThread(
 	IN  PVOID InitialTeb,
 	IN  BOOLEAN CreateSuspended
 );
+
+HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
+	IN HWND hwndParent,
+	IN HWND hwndChild,
+	IN PUNICODE_STRING pstrClassName,
+	IN PUNICODE_STRING pstrWindowName);

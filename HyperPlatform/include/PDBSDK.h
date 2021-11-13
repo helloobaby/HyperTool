@@ -46610,3 +46610,9 @@ const ULONG OffsetVfBTSDataManagementArea = 0x988c00;
 const ULONG OffsetViVerifyTriageRules = 0x98b400;
 const ULONG OffsetVfBTSStarted = 0x98c400;
 const ULONG Offset__ps_a = 0x98e000;
+
+
+
+//win32kfull
+
+const ULONG OffsetNtUserFindWindowEx = 0x73620;

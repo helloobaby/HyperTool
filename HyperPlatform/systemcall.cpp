@@ -11,6 +11,7 @@ extern "C" void DetourKiSystemServiceStart();
 NTSYSAPI const char* PsGetProcessImageFileName(PEPROCESS Process);
 }
 
+
 fpSystemCall SystemCallFake;
 
 char SystemCallRecoverCode[15] = {};
@@ -20,6 +21,33 @@ NTSTATUS HookStatus = STATUS_UNSUCCESSFUL;
 const char* GetSyscallProcess()
 {
 	return PsGetProcessImageFileName(IoGetCurrentProcess());
+}
+
+
+//copy from blackbone
+PKLDR_DATA_TABLE_ENTRY GetSystemModule(IN PUNICODE_STRING pName, IN PVOID pAddress)
+{
+	if ((pName == NULL && pAddress == NULL) || PsLoadedModuleList == NULL)
+		return NULL;
+
+	// No images
+	if (IsListEmpty(PsLoadedModuleList))
+		return NULL;
+
+	// Search in PsLoadedModuleList
+	for (PLIST_ENTRY pListEntry = PsLoadedModuleList->Flink; pListEntry != PsLoadedModuleList; pListEntry = pListEntry->Flink)
+	{
+		PKLDR_DATA_TABLE_ENTRY pEntry = CONTAINING_RECORD(pListEntry, KLDR_DATA_TABLE_ENTRY, InLoadOrderLinks);
+
+		// Check by name or by address
+		if ((pName && RtlCompareUnicodeString(&pEntry->BaseDllName, pName, TRUE) == 0) ||
+			(pAddress && pAddress >= pEntry->DllBase && (PUCHAR)pAddress < (PUCHAR)pEntry->DllBase + pEntry->SizeOfImage))
+		{
+			return pEntry;
+		}
+	}
+
+	return NULL;
 }
 
 
@@ -40,8 +68,30 @@ NTSTATUS InitSystemVar()
 
 	KernelBase = GetKernelBase();
 
+	PsLoadedModuleList = (decltype(PsLoadedModuleList))(KernelBase + OffsetPsLoadedModuleList);
+
+	auto tmpa = GetSystemModule(&Win32kfullBaseString,0);
+	if (tmpa)
+	{
+		Win32kfullBase = (ULONG_PTR)tmpa->DllBase;
+#ifdef DBG
+		Log("[WIN32kfullBase]%llx\n", Win32kfullBase);
+#endif // DBG
+
+	}
+	else
+	{
+#ifdef DBG
+		DbgBreakPoint();
+#else
+		KeBugCheck(0xbbbbbbbb);
+#endif
+	}
+
 	if (!KernelBase)
 		KeBugCheck(0xaaaaaaaa);
+	//LdrpKrnGetDataTableEntry = (LdrpKrnGetDataTableEntryType)(KernelBase + OffsetLdrpKrnGetDataTableEntry);
+
 	PtrKiSystemServiceStart = (ULONG_PTR)&DetourKiSystemServiceStart;
 
 	//KiSystemServiceCopyStart = OffsetKiSystemServiceCopyStart + KernelBase;

@@ -691,7 +691,7 @@ _Use_decl_annotations_ static bool VmpSetupVmcs(
 
   // NOTE: Comment in any of those as needed
   const auto exception_bitmap =
-       1 << InterruptionVector::kBreakpointException |
+      //1 << InterruptionVector::kBreakpointException |
       // 1 << InterruptionVector::kGeneralProtectionException |
       // 1 << InterruptionVector::kPageFaultException |
       0;
