@@ -14,10 +14,12 @@ extern "C"
 extern ULONG_PTR KernelBase;
 extern ULONG_PTR PspCidTable;
 extern ULONG_PTR Win32kfullBase;
+extern ULONG Win32kfullSize;
 }
 
 #define PAGE_FAULT_READ 0
 
+UNICODE_STRING ux64dbg = RTL_CONSTANT_STRING(L"x64dbg");
 
 const char* test_process = "Dbgview.exe";
 
@@ -102,11 +104,14 @@ void ServiceHook::Construct()
 
 	for (auto Session : vSesstionSpace)
 	{
-		if (this->fp.GuestVA == PVOID(Win32kfullBase + OffsetNtUserFindWindowEx))
+		//if (this->fp.GuestVA == PVOID(Win32kfullBase + OffsetNtUserFindWindowEx))
+		//{
+			//this->isWin32Hook = true;
+		//}
+		if (this->fp.GuestVA > (PVOID)Win32kfullBase && this->fp.GuestVA < (PVOID)(Win32kfullBase + Win32kfullSize))
 		{
 			this->isWin32Hook = true;
 		}
-
 
 	}
 
@@ -608,8 +613,9 @@ HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
 		Log("[%s]%ws\n",__func__ ,pstrClassName->Buffer);
 #endif // DBG
 
-
-
+	
+	if (!RtlCompareUnicodeString(pstrWindowName, &ux64dbg, 1))
+		return 0;
 
 
 

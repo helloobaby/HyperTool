@@ -3,7 +3,7 @@
 
 int main()
 {
-    FindWindowEx(0, 0, NULL, L"123");
-    getchar();
+    HANDLE h = FindWindowEx((HWND)0, (HWND)0, NULL, L"x64dbg");
+    std::cout << h << std::endl;
 }
 

@@ -57,6 +57,7 @@ extern "C"
 	inline const ULONG KernelSize = 0xa6e000; //hard signature
 	inline ULONG_PTR KernelBase = NULL;
 	inline ULONG_PTR Win32kfullBase = NULL;
+	inline ULONG Win32kfullSize = NULL;
 	inline ULONG_PTR PspCidTable;
 	inline PLIST_ENTRY PsLoadedModuleList;
 	inline UNICODE_STRING Win32kfullBaseString = RTL_CONSTANT_STRING(L"win32kfull.sys");

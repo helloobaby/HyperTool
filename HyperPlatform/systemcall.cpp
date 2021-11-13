@@ -74,6 +74,7 @@ NTSTATUS InitSystemVar()
 	if (tmpa)
 	{
 		Win32kfullBase = (ULONG_PTR)tmpa->DllBase;
+		Win32kfullSize = (ULONG_PTR)tmpa->SizeOfImage;
 #ifdef DBG
 		Log("[WIN32kfullBase]%llx\n", Win32kfullBase);
 #endif // DBG
