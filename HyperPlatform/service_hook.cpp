@@ -19,11 +19,20 @@ extern ULONG Win32kfullSize;
 
 #define PAGE_FAULT_READ 0
 
-UNICODE_STRING ux64dbg = RTL_CONSTANT_STRING(L"x64dbg");
-
 const char* test_process = "Dbgview.exe";
 
 const char* target_process = "csgo.exe";
+
+struct myUnicodeString : public UNICODE_STRING
+{
+	~myUnicodeString() {}
+};
+
+myUnicodeString ux64dbg = RTL_CONSTANT_STRING(L"x64dbg");
+myUnicodeString uxdbg64 = RTL_CONSTANT_STRING(L"xdbg64");
+myUnicodeString ux32dbg = RTL_CONSTANT_STRING(L"x32dbg");
+myUnicodeString uxdbg32 = RTL_CONSTANT_STRING(L"xdbg32");
+myUnicodeString uCheatEngine73 = RTL_CONSTANT_STRING(L"Cheat Engine 7.3");
 
 //还有个快捷方式，如果需要测试的话
 //
@@ -39,6 +48,8 @@ hde64s gIns;
 static bool init = false;
 vector<MM_SESSION_SPACE*> vSesstionSpace;
 
+static vector<myUnicodeString> vHideWindow;
+
 #pragma optimize( "", off )
 void ServiceHook::Construct()
 {
@@ -51,6 +62,14 @@ void ServiceHook::Construct()
 	
 	//引入一个bool init，来做只需要一次的初始化工作
 	if (!init) {
+
+		vHideWindow.push_back(ux64dbg);
+		vHideWindow.push_back(uxdbg64);
+		vHideWindow.push_back(ux32dbg);
+		vHideWindow.push_back(uxdbg32);
+		vHideWindow.push_back(uCheatEngine73);
+
+
 
 		pfMiAttachSession = (MiAttachSessionType)(KernelBase + OffsetMiAttachSession);
 		pfMiDetachProcessFromSession = (MiDetachProcessFromSessionType)(KernelBase + OffsetMiDetachProcessFromSession);
@@ -613,21 +632,9 @@ HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
 		Log("[%s]%ws\n",__func__ ,pstrClassName->Buffer);
 #endif // DBG
 
-	
-	if (!RtlCompareUnicodeString(pstrWindowName, &ux64dbg, 1))
-		return 0;
-
-
-
-
-
-
-
-
-
-
-
-
-
+	for (auto window : vHideWindow) {
+		if (!RtlCompareUnicodeString(pstrWindowName, &window, 1))
+			return 0;
+	}
 	return OriNtUserFindWindowEx(hwndParent, hwndChild, pstrClassName, pstrWindowName);
 }
