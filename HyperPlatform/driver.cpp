@@ -22,6 +22,7 @@
 #include "settings.h"
 #include"include/global.hpp"
 #include"service_hook.h"
+#include"device.h"
 
 extern "C"
 {
@@ -106,9 +107,12 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   _CRT_INIT();
 
 
+  status = HyperInitDeviceAll(driver_object);
 
-
-
+  if (!NT_SUCCESS(status))
+  {
+      return STATUS_UNSUCCESSFUL;
+  }
 
 
 #ifdef HOOK_SYSCALL 
@@ -282,6 +286,8 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
 #ifdef SERVICE_HOOK
   RemoveServiceHook();
 #endif
+
+  HyperDestroyDeviceAll(driver_object);
 
 }
 
