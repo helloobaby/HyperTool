@@ -46616,3 +46616,4 @@ const ULONG Offset__ps_a = 0x98e000;
 //win32kfull
 
 const ULONG OffsetNtUserFindWindowEx = 0x73620;
+const ULONG OffsetgpKernelHandleTable = 0x1ddc08;

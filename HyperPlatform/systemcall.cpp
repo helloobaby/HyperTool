@@ -89,6 +89,24 @@ NTSTATUS InitSystemVar()
 #endif
 	}
 
+	tmpa = GetSystemModule(&Win32kbaseBaseString, 0);
+	if (tmpa)
+	{
+		Win32kbaseBase = (ULONG_PTR)tmpa->DllBase;
+#ifdef DBG
+		Log("[WIN32kbaseBase]%llx\n", Win32kbaseBase);
+#endif // DBG
+	}
+	else
+	{
+#ifdef DBG
+		DbgBreakPoint();
+#else
+		KeBugCheck(0xcccccccc);
+#endif
+	}
+
+
 	if (!KernelBase)
 		KeBugCheck(0xaaaaaaaa);
 	//LdrpKrnGetDataTableEntry = (LdrpKrnGetDataTableEntryType)(KernelBase + OffsetLdrpKrnGetDataTableEntry);

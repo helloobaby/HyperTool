@@ -1,10 +1,14 @@
 #include"device.h"
+#include"window.h"
 
 static UNICODE_STRING uDevice = RTL_CONSTANT_STRING(DEVICE_NAME);
 static UNICODE_STRING uSymbol = RTL_CONSTANT_STRING(DOS_DEVICE_NAME);
 
 NTSTATUS HyperInitDeviceAll(PDRIVER_OBJECT DriverObject)
 {
+#if 0
+	Log("HyperInitDeviceAll\n");
+#endif
 	PDEVICE_OBJECT deviceObject = NULL;
 	NTSTATUS Status;
 
@@ -69,20 +73,25 @@ NTSTATUS HyperDispatchControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 	ioBuffer = Irp->AssociatedIrp.SystemBuffer;
 	inputBufferLength = irpStack->Parameters.DeviceIoControl.InputBufferLength;
 	outputBufferLength = irpStack->Parameters.DeviceIoControl.OutputBufferLength;
+	ioControlCode = irpStack->Parameters.DeviceIoControl.IoControlCode;
 
-	switch (irpStack->MajorFunction)
+
+	switch (ioControlCode)
 	{
+		
 		case IOCTL_HYPER_TOOL_TEST://only for test
 			Log("HyperDispatchControl Test Entry\n");
-		break;
-
+			break;
+		case IOCTL_HYPER_HIDE_WINDOW:
+			AttackWindowTable();
+			break;
 		
 	}
 
 
 
 
-
+	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 	return status;
 }
 

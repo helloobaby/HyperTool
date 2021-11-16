@@ -24,6 +24,6 @@ int main()
     if (!ok)
         cout << "DeviceIoControl failed with error code " << GetLastError() << endl;
 
-
+    CloseHandle(handle);
 }
 

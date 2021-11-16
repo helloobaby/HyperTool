@@ -72,11 +72,12 @@ namespace Client
 
             if (FileHandle == INVALID_HANDLE_VALUE)
             {
+                MessageBox.Show("CreateFile failed \n");
                 return;
             }
 
             uint byteRet = 0;
-            DeviceIoControl(FileHandle, CTL_CODE(FILE_DEVICE_UNKNOWN, 0x80E, METHOD_BUFFERED, FILE_READ_ACCESS),
+            DeviceIoControl(FileHandle, CTL_CODE(FILE_DEVICE_UNKNOWN, 0x80E+1, METHOD_BUFFERED, FILE_READ_ACCESS),
                 IntPtr.Zero, 0, IntPtr.Zero, 0, out byteRet, IntPtr.Zero);
 
             CloseHandle(FileHandle);

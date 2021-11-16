@@ -87,6 +87,7 @@
     <ClCompile Include="util.cpp" />
     <ClCompile Include="vm.cpp" />
     <ClCompile Include="vmm.cpp" />
+    <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asm.h" />
@@ -125,6 +126,7 @@
     <ClInclude Include="util_page_constants.h" />
     <ClInclude Include="vm.h" />
     <ClInclude Include="vmm.h" />
+    <ClInclude Include="window.h" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="Arch\x64\x64.asm">

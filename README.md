@@ -7,6 +7,7 @@ Support log process' systemcalls and easy ept-hook (NtOpenProcess or NtCreateFil
 
 Support hook win32kfull.sys funtions.
 
+Add hide window (attack gpKernelHandleTable and hook FindWindow).
 
 
 # Only effect on win10 1809

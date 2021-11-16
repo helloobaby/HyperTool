@@ -15,8 +15,10 @@
 //
 #define SERVICE_HOOK
 
-
-
+//
+//¿ªÆôÒþ²ØÄ³¸ö´°¿Ú
+//
+#define HIDE_WINDOW
 
 
 

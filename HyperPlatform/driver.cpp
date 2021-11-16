@@ -23,6 +23,7 @@
 #include"include/global.hpp"
 #include"service_hook.h"
 #include"device.h"
+#include"window.h"
 
 extern "C"
 {
@@ -149,10 +150,18 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
 #endif 
 
+#ifdef HIDE_WINDOW
+  Window::Init();
+  //AttackWindowTable();
+#endif // HIDE_WINDOW
+
+
+
 
 
   //
   //便于测试,屏蔽掉虚拟化的功能
+  //有些bug需要关虚拟化后复现蓝屏才能发现
   //
 #if 0
   return STATUS_SUCCESS;
