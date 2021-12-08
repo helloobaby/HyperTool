@@ -12,8 +12,9 @@ Add hide window (attack gpKernelHandleTable and hook FindWindow).
 
 # Only effect on win10 1809
 
-# Too many places need to be hard-coded, so forgive me, otherwise it will take a lot of time
+# Use [tool](https://github.com/helloobaby/pdbtoheader.git) to change include\PDBSDK that effect on your system
 
+# Believe this project is useful for you
 
 
 
