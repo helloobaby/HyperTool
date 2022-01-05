@@ -18,7 +18,7 @@
 //
 //¿ªÆôÒþ²ØÄ³¸ö´°¿Ú
 //
-#define HIDE_WINDOW
+//#define HIDE_WINDOW
 
 
 

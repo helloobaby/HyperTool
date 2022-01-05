@@ -1,5 +1,6 @@
 #include"device.h"
 #include"window.h"
+#include"settings.h"
 
 static UNICODE_STRING uDevice = RTL_CONSTANT_STRING(DEVICE_NAME);
 static UNICODE_STRING uSymbol = RTL_CONSTANT_STRING(DOS_DEVICE_NAME);
@@ -83,7 +84,9 @@ NTSTATUS HyperDispatchControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 			Log("HyperDispatchControl Test Entry\n");
 			break;
 		case IOCTL_HYPER_HIDE_WINDOW:
+#ifdef HIDE_WINDOW
 			AttackWindowTable();
+#endif // HIDE_WINDOW
 			break;
 		
 	}
