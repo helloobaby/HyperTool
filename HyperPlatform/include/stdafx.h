@@ -6,7 +6,7 @@
 #include <ntdef.h>
 #include <ntddk.h>
 #include <ntstatus.h>
-#include <cstdio>
+#include <stdio.h>
 #pragma warning(pop)
 
 inline ULONG Log(const char* format, ...)

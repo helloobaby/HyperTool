@@ -11,7 +11,7 @@
 #define _NO_CRT_STDIO_INLINE
 #define _CRT_SECURE_NO_WARNINGS
 #include <ntddk.h>
-#include <cstdio>
+#include <stdio.h>
 
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
