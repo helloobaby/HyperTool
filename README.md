@@ -12,9 +12,9 @@ Add hide window (attack gpKernelHandleTable and hook FindWindow).
 
 # Only effect on win10 1809
 
-# Use [tool](https://github.com/helloobaby/pdbtoheader.git) to change include\PDBSDK that effect on your system
+# Use [tool](https://github.com/helloobaby/pdbtoheader.git) to change include\PDBSDK that effect on your system(this means change all hard signature that depend on specific system)
 
-# Believe this project is useful for you
+# Pay attention to "settingsh"
 
 
 
