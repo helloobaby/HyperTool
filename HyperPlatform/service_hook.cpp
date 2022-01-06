@@ -267,7 +267,7 @@ pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV 
 	memcpy((PVOID)this->fp.GuestVA, hook, sizeof(hook));
 
 	WPONx64(irql);
-
+	
 
 	ExclReleaseExclusivity(exclusivity);
 
@@ -294,9 +294,23 @@ void ServiceHook::Destruct()
 
 	if (this->isWin32Hook)
 		pfMiAttachSession(vSesstionSpace[0]);
+
+
+
+	//
 	//这部分代码仅仅是让分页的内存换进来，下面禁用线程切换就换不了了
+	//
+	if(KeGetCurrentIrql()>= DISPATCH_LEVEL)
+		KeLowerIrql(APC_LEVEL);
 	char tmp[1];
 	memcpy(tmp, this->fp.GuestVA, 1);
+	//
+	//没换进来页,主动蓝屏
+	//
+	if (!MmIsAddressValid(this->fp.GuestVA))
+	{
+		KeBugCheck(0x11111110);
+	}
 	//
 	auto Exclu = ExclGainExclusivity();
 	auto irql = WPOFFx64();
