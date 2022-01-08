@@ -88,7 +88,7 @@ namespace std
 		wstring::wstring(const wstring& str)
 		{
 			m_size = wcslen(str.c_str());
-			m_src = new wchar_t[m_size + 1];
+			m_src = new wchar_t[m_size + 2];
 			wcscpy(m_src, str.c_str());
 		}
 
