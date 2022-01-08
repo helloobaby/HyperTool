@@ -14,7 +14,7 @@ Add hide window (attack gpKernelHandleTable and hook FindWindow).
 
 # Use [tool](https://github.com/helloobaby/pdbtoheader.git) to change include\PDBSDK that effect on your system(this means change all hard signature that depend on specific system)
 
-# Pay attention to "settingsh"
+# Pay attention to header file "settings.h"
 
 
 
