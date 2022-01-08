@@ -652,3 +652,44 @@ HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
 	}
 	return OriNtUserFindWindowEx(hwndParent, hwndChild, pstrClassName, pstrWindowName);
 }
+
+
+NTSTATUS DetourNtDeviceIoControlFile(
+	_In_ HANDLE FileHandle,
+	_In_opt_ HANDLE Event,
+	_In_opt_ PIO_APC_ROUTINE ApcRoutine,
+	_In_opt_ PVOID ApcContext,
+	_Out_ PIO_STATUS_BLOCK IoStatusBlock,
+	_In_ ULONG IoControlCode,
+	_In_reads_bytes_opt_(InputBufferLength) PVOID InputBuffer,
+	_In_ ULONG InputBufferLength,
+	_Out_writes_bytes_opt_(OutputBufferLength) PVOID OutputBuffer,
+	_In_ ULONG OutputBufferLength
+)
+{
+	NTSTATUS status;
+	FILE_OBJECT* FileObject;
+	status = ObReferenceObjectByHandle(FileHandle, FILE_ALL_ACCESS, *IoFileObjectType, KernelMode, (PVOID*)&FileObject, NULL);
+	
+	
+	if (NT_SUCCESS(status)) {
+
+		unsigned char* Image = PsGetProcessImageFileName(IoGetCurrentProcess());
+
+		if (!strcmp((const char*)Image, "vssadmin.exe") || !strcmp((const char*)Image, "wmic.exe"))
+		{
+			POBJECT_NAME_INFORMATION p;
+			IoQueryFileDosDeviceName(FileObject, &p);
+
+			Log("[service]%wZ  [ioctl-code] %x\n", p->Name, IoControlCode);
+
+
+			ExFreePool(p);
+		}
+
+	}
+
+
+	return OriNtDeviceIoControlFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, IoControlCode, InputBuffer,
+		InputBufferLength, OutputBuffer, OutputBufferLength);
+}

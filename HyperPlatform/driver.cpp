@@ -152,6 +152,10 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       DetourNtCreateThread,
       (PVOID*)&OriNtCreateThread);
 
+  AddServiceHook(PVOID(KernelBase + OffsetNtDeviceIoControlFile),
+      DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile);
+
+
 #ifdef HIDE_WINDOW
   AddServiceHook(PVOID(Win32kfullBase + OffsetNtUserFindWindowEx),
       DetourNtUserFindWindowEx,
