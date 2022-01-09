@@ -678,10 +678,15 @@ NTSTATUS DetourNtDeviceIoControlFile(
 
 		if (!strcmp((const char*)Image, "vssadmin.exe") || !strcmp((const char*)Image, "wmic.exe"))
 		{
-			POBJECT_NAME_INFORMATION p;
-			IoQueryFileDosDeviceName(FileObject, &p);
+			POBJECT_NAME_INFORMATION p = NULL;
+			status = IoQueryFileDosDeviceName(FileObject, &p);
+
+			if (p && NT_SUCCESS(status)) {
 
 			Log("[service]%wZ  [ioctl-code] %x\n", p->Name, IoControlCode);
+			
+			}
+
 
 
 			ExFreePool(p);
