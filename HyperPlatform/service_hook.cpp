@@ -17,27 +17,26 @@ extern ULONG_PTR Win32kfullBase;
 extern ULONG Win32kfullSize;
 }
 
-#define PAGE_FAULT_READ 0
-
-const char* test_process = "Dbgview.exe";
-
-const char* target_process = "csgo.exe";
-
 struct myUnicodeString : public UNICODE_STRING
 {
 	~myUnicodeString() {}
 };
 
+//
+// 需要隐藏的窗口名字
+// 在ServiceHook::Construct中使用
+//
 myUnicodeString ux64dbg = RTL_CONSTANT_STRING(L"x64dbg");
 myUnicodeString uxdbg64 = RTL_CONSTANT_STRING(L"xdbg64");
 myUnicodeString ux32dbg = RTL_CONSTANT_STRING(L"x32dbg");
 myUnicodeString uxdbg32 = RTL_CONSTANT_STRING(L"xdbg32");
 myUnicodeString uCheatEngine73 = RTL_CONSTANT_STRING(L"Cheat Engine 7.3");
 
-//还有个快捷方式，如果需要测试的话
 //
-//#define target_process test_process
+// 需要隐藏的窗口类名
 //
+//
+
 
 
 
@@ -50,7 +49,6 @@ vector<MM_SESSION_SPACE*> vSesstionSpace;
 
 static vector<myUnicodeString> vHideWindow;
 
-#pragma optimize( "", off )
 void ServiceHook::Construct()
 {
 
@@ -103,6 +101,8 @@ void ServiceHook::Construct()
 		
 
 		init = true;
+
+
 	}
 #if 0
 	for (int i = 8;;)
@@ -239,9 +239,9 @@ pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV 
 	while (CodeLength < 12)
 	{
 		HdeDisassemble((void*)((ULONG_PTR)(this->fp.GuestVA) + CodeLength), &gIns);
-		CodeLength += gIns.len;
+		CodeLength	 += gIns.len;
 	}
-	this->HookCodeLen = CodeLength;
+	this->HookCodeLen = (ULONG)CodeLength;
 	/*
 	* 1.分配一个动态内存(Orixxxxx)保存函数开头至少12个字节,还得加上一个jmpxxx的字节，因为Ori还得jmp回去
 	* 2.然后修改函数开头为move rax,xx jump rax,xx
@@ -294,10 +294,12 @@ void ServiceHook::Destruct()
 
 	if (this->isWin32Hook)
 		pfMiAttachSession(vSesstionSpace[0]);
-	//这部分代码仅仅是让分页的内存换进来，下面禁用线程切换就换不了了
+
+	//这部分代码仅仅是让分页的内存换进来，下面irql高了就换不了了
 	char tmp[1];
 	memcpy(tmp, this->fp.GuestVA, 1);
 	//
+
 	auto Exclu = ExclGainExclusivity();
 	auto irql = WPOFFx64();
 	memcpy(this->fp.GuestVA, *(this->TrampolineFunc), this->HookCodeLen);
@@ -311,6 +313,9 @@ void ServiceHook::Destruct()
 
 }
 
+//
+// 开始hook
+//
 void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline)
 {
 	ServiceHook tmp;
@@ -321,6 +326,9 @@ void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline)
 	vServcieHook.push_back(tmp);
 }
 
+//
+// 卸载hook
+//
 void RemoveServiceHook()
 {
 	for (auto& hook : vServcieHook)
@@ -328,6 +336,16 @@ void RemoveServiceHook()
 		hook.Destruct();
 	}
 }
+
+
+
+
+
+
+
+
+
+
 
 //
 //hook example
@@ -344,7 +362,7 @@ NTSTATUS DetourNtOpenProcess(
 
 	static int once = 0;
 	if (!(once++))
-		Log("%s\n", __func__);
+		Log("[HOOK_LOG]%s\n", __func__);
 
 #endif // DBG
 
@@ -368,7 +386,7 @@ NTSTATUS DetourNtCreateFile(
 #ifdef DBG
 	static int once = 0;
 	if (!(once++))
-		Log("%s\n", __func__);
+		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 
 	return OriNtCreateFile(
@@ -399,7 +417,7 @@ NTSTATUS DetourNtWriteVirtualMemory(
 #ifdef DBG
 	static int once = 0;
 	if (!(once++))
-		Log("%s\n", __func__);
+		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 
 	NTSTATUS Status STATUS_UNSUCCESSFUL;
@@ -415,19 +433,6 @@ NTSTATUS DetourNtWriteVirtualMemory(
 	if (Process)
 	{
 		unsigned char* Image = PsGetProcessImageFileName(Process);
-
-		if (!strcmp((const char*)Image, target_process))
-		{
-			Log("[%s]\nBaseAddress %llx BufferSize %llx\n",__func__, BaseAddress, BufferSize);
-		}
-
-
-
-
-
-
-
-
 	}
 	return OriNtWriteVirtualMemory(
 		ProcessHandle,
@@ -453,7 +458,7 @@ NTSTATUS DetourNtCreateThreadEx(
 #ifdef DBG
 	static int once = 0;
 	if (!(once++))
-		Log("%s\n", __func__);
+		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 
 	NTSTATUS Status STATUS_UNSUCCESSFUL;
@@ -466,24 +471,6 @@ NTSTATUS DetourNtCreateThreadEx(
 		(PVOID*)&Process,
 		NULL);
 
-	if (Process)
-	{
-		unsigned char* Image = PsGetProcessImageFileName(Process);
-		const unsigned char* Image2 = PsGetProcessImageFileName(IoGetCurrentProcess());
-
-		if (!strcmp((const char*)Image, target_process) && strcmp((const char*)Image2, target_process))
-		{
-			Log("[csgo]\nThreadProcedure %llx\n", lpStartAddress);
-
-			if (lpParameter)
-				Log("lpParameter value is %llx\n", lpParameter);
-
-
-		}
-
-
-	}
-	
 
 	return OriNtCreateThreadEx(
 		hThread, 
@@ -512,7 +499,7 @@ NTSTATUS DetourNtAllocateVirtualMemory(
 #ifdef DBG
 	static int once = 0;
 	if (!(once++))
-		Log("%s\n", __func__);
+		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 
 	NTSTATUS Status STATUS_UNSUCCESSFUL;
@@ -524,18 +511,6 @@ NTSTATUS DetourNtAllocateVirtualMemory(
 		UserMode,
 		(PVOID*)&Process,
 		NULL);
-
-	if (Process)
-	{
-		unsigned char* Image = PsGetProcessImageFileName(Process);
-		const unsigned char* Image2 = PsGetProcessImageFileName(IoGetCurrentProcess());
-		if (!strcmp((const char*)Image, target_process) && strcmp((const char*)Image2, target_process))
-		{
-			Log("[%s]\nAlloc RegionSize %p\n", __func__, *RegionSize);
-		}
-
-
-	}
 
 
 
@@ -566,7 +541,7 @@ NTSTATUS DetourNtCreateThread(
 #ifdef DBG
 	static int once = 0;
 	if (!(once++))
-		Log("%s\n", __func__);
+		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 
 
@@ -579,19 +554,6 @@ NTSTATUS DetourNtCreateThread(
 		UserMode,
 		(PVOID*)&Process,
 		NULL);
-
-	if (Process)
-	{
-		unsigned char* Image = PsGetProcessImageFileName(Process);
-		const unsigned char* Image2 = PsGetProcessImageFileName(IoGetCurrentProcess());
-
-		if (!strcmp((const char*)Image, target_process) && strcmp((const char*)Image2, target_process))
-		{
-			Log("[%s]\nThreadProcedure %llx\n",__func__ ,ThreadContext->Rcx);
-		}
-
-
-	}
 
 	return OriNtCreateThread(
 		ThreadHandle,
@@ -618,23 +580,23 @@ hook win32k 函数的注意事项
 
 */
 
+//
+//还需要对ClassName做一下过滤，不过作用不大，这个不太好用
+//
 HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
 	IN HWND hwndParent,
 	IN HWND hwndChild,
 	IN PUNICODE_STRING pstrClassName,
 	IN PUNICODE_STRING pstrWindowName)
 {
-#if 0
-	if(pstrWindowName->Buffer)
-		Log("[%s]%ws\n", __func__, pstrWindowName->Buffer);
 
-	if (pstrClassName->Buffer)
-		Log("[%s]%ws\n",__func__ ,pstrClassName->Buffer);
-#endif // DBG
+
 
 	for (auto window : vHideWindow) {
 		if (!RtlCompareUnicodeString(pstrWindowName, &window, 1))
 			return 0;
 	}
 	return OriNtUserFindWindowEx(hwndParent, hwndChild, pstrClassName, pstrWindowName);
+
+
 }

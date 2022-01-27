@@ -9,7 +9,7 @@ Copyright (c) 2021-x	 https://github.com/helloobaby/KernelModeSTL
 #include <ntifs.h>
 #include <ntdef.h>
 #include <ntddk.h>
-#include <cstdio>
+#include <stdio.h>
 #include <stddef.h>
 #include "type_traits.hpp"
 #include"sect_attribs.h"
