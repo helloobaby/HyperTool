@@ -128,14 +128,17 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   
   //hook NtOpenProcess
   AddServiceHook(UtilGetSystemProcAddress(L"NtOpenProcess"), DetourNtOpenProcess,(PVOID*)&OriNtOpenProcess);
+
   //hook NtCreateFile
   AddServiceHook(UtilGetSystemProcAddress(L"NtCreateFile"), DetourNtCreateFile, (PVOID*)&OriNtCreateFile);
+
   //hook NtWriteVirtualMemory
   AddServiceHook(
       PVOID(KernelBase + OffsetNtWriteVirtualMemory), 
       DetourNtWriteVirtualMemory, 
       (PVOID*)&OriNtWriteVirtualMemory
   );
+
   //hook NtCreateThreadEx
   AddServiceHook(
       PVOID(KernelBase + OffsetNtCreateThreadEx),
@@ -152,6 +155,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       DetourNtCreateThread,
       (PVOID*)&OriNtCreateThread);
 
+  //hook NtDeviceIoControlFile
   AddServiceHook(PVOID(KernelBase + OffsetNtDeviceIoControlFile),
       DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile);
 

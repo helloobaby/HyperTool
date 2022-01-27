@@ -9,13 +9,11 @@ Support hook win32kfull.sys funtions.
 
 Add hide window (attack gpKernelHandleTable and hook FindWindow).
 
+# Pay attention:
 
-## Only effect on win10 1809 17763.437
+header file "settings.h" ,hooked functions are implemented at service_hook.cpp about line 360
 
-# Use [tool](https://github.com/helloobaby/pdbtoheader.git) to change include\PDBSDK that effect on your system(this means change all hard signature that depend on specific system)
-
-# Pay attention to header file "settings.h" ,hooked functions are implemented at service_hook.cpp about line 360
-
+PDBSDK.h
 
 
 
