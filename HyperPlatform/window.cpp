@@ -2,6 +2,9 @@
 #include"include/PDBSDK.h"
 #include"service_hook.h"
 #include"include/vector.hpp"
+#include"settings.h"
+
+#ifdef HIDE_WINDOW
 
 using std::vector;
 
@@ -75,4 +78,7 @@ void AttackWindowTable()
 
 	//pfMiDetachProcessFromSession(1);
 }
+
+
+#endif // HIDE_WINDOW
 

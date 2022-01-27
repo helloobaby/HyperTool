@@ -239,7 +239,7 @@ pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV 
 	while (CodeLength < 12)
 	{
 		HdeDisassemble((void*)((ULONG_PTR)(this->fp.GuestVA) + CodeLength), &gIns);
-		CodeLength	 += gIns.len;
+		CodeLength += gIns.len;
 	}
 	this->HookCodeLen = (ULONG)CodeLength;
 	/*
@@ -267,7 +267,7 @@ pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV 
 	memcpy((PVOID)this->fp.GuestVA, hook, sizeof(hook));
 
 	WPONx64(irql);
-
+	
 
 	ExclReleaseExclusivity(exclusivity);
 
@@ -295,11 +295,23 @@ void ServiceHook::Destruct()
 	if (this->isWin32Hook)
 		pfMiAttachSession(vSesstionSpace[0]);
 
-	//这部分代码仅仅是让分页的内存换进来，下面irql高了就换不了了
+
+
+	//
+	//这部分代码仅仅是让分页的内存换进来，下面禁用线程切换就换不了了
+	//
+	if(KeGetCurrentIrql()>= DISPATCH_LEVEL)
+		KeLowerIrql(APC_LEVEL);
 	char tmp[1];
 	memcpy(tmp, this->fp.GuestVA, 1);
 	//
-
+	//没换进来页,主动蓝屏
+	//
+	if (!MmIsAddressValid(this->fp.GuestVA))
+	{
+		KeBugCheck(0x11111110);
+	}
+	//
 	auto Exclu = ExclGainExclusivity();
 	auto irql = WPOFFx64();
 	memcpy(this->fp.GuestVA, *(this->TrampolineFunc), this->HookCodeLen);
@@ -597,6 +609,50 @@ HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
 			return 0;
 	}
 	return OriNtUserFindWindowEx(hwndParent, hwndChild, pstrClassName, pstrWindowName);
+}
 
 
+NTSTATUS DetourNtDeviceIoControlFile(
+	_In_ HANDLE FileHandle,
+	_In_opt_ HANDLE Event,
+	_In_opt_ PIO_APC_ROUTINE ApcRoutine,
+	_In_opt_ PVOID ApcContext,
+	_Out_ PIO_STATUS_BLOCK IoStatusBlock,
+	_In_ ULONG IoControlCode,
+	_In_reads_bytes_opt_(InputBufferLength) PVOID InputBuffer,
+	_In_ ULONG InputBufferLength,
+	_Out_writes_bytes_opt_(OutputBufferLength) PVOID OutputBuffer,
+	_In_ ULONG OutputBufferLength
+)
+{
+	NTSTATUS status;
+	FILE_OBJECT* FileObject;
+	status = ObReferenceObjectByHandle(FileHandle, FILE_ALL_ACCESS, *IoFileObjectType, KernelMode, (PVOID*)&FileObject, NULL);
+	
+	
+	if (NT_SUCCESS(status)) {
+
+		unsigned char* Image = PsGetProcessImageFileName(IoGetCurrentProcess());
+
+		if (!strcmp((const char*)Image, "vssadmin.exe") || !strcmp((const char*)Image, "wmic.exe"))
+		{
+			POBJECT_NAME_INFORMATION p = NULL;
+			status = IoQueryFileDosDeviceName(FileObject, &p);
+
+			if (p && NT_SUCCESS(status)) {
+
+			Log("[service]%wZ  [ioctl-code] %x\n", p->Name, IoControlCode);
+			
+			}
+
+
+
+			ExFreePool(p);
+		}
+
+	}
+
+
+	return OriNtDeviceIoControlFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, IoControlCode, InputBuffer,
+		InputBufferLength, OutputBuffer, OutputBufferLength);
 }

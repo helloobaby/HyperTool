@@ -117,6 +117,7 @@ PEPROCESS MmGetSessionById(int sessionId);
 NTSTATUS MiAttachSession(MM_SESSION_SPACE* SessionSpace);
 NTSTATUS MiDetachProcessFromSession(int SessionID);
 
+
 NTSTATUS
 MmAccessFault(
 	IN ULONG_PTR FaultStatus,
@@ -124,6 +125,7 @@ MmAccessFault(
 	IN PVOID VirtualAddress,
 	IN KPROCESSOR_MODE PreviousMode
 );
+
 
 using NtOpenProcessType = decltype(&NtOpenProcess);
 using NtCreateFileType = decltype(&NtCreateFile);
@@ -136,6 +138,7 @@ using MiGetSystemRegionTypeType = decltype(&MiGetSystemRegionType);
 using MmGetSessionByIdType = decltype(&MmGetSessionById);
 using MiAttachSessionType = decltype(&MiAttachSession);
 using MiDetachProcessFromSessionType = decltype(&MiDetachProcessFromSession);
+using NtDeviceIoControlFileType = decltype(&NtDeviceIoControlFile);
 
 //
 //必须保证你这个要hook的函数在给rax赋值之前不使用rax，因为我们使用rax作为跳板
@@ -165,6 +168,7 @@ inline MmGetSessionByIdType pfMmGetSessionById;
 inline MM_SESSION_SPACE* SystemSesstionSpace;
 inline MiAttachSessionType pfMiAttachSession;
 inline MiDetachProcessFromSessionType pfMiDetachProcessFromSession;
+inline NtDeviceIoControlFileType OriNtDeviceIoControlFile;
 
 NTSTATUS DetourNtOpenProcess(
 	PHANDLE            ProcessHandle,
@@ -233,3 +237,16 @@ HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
 	IN HWND hwndChild,
 	IN PUNICODE_STRING pstrClassName,
 	IN PUNICODE_STRING pstrWindowName);
+
+NTSTATUS DetourNtDeviceIoControlFile(
+	_In_ HANDLE FileHandle,
+	_In_opt_ HANDLE Event,
+	_In_opt_ PIO_APC_ROUTINE ApcRoutine,
+	_In_opt_ PVOID ApcContext,
+	_Out_ PIO_STATUS_BLOCK IoStatusBlock,
+	_In_ ULONG IoControlCode,
+	_In_reads_bytes_opt_(InputBufferLength) PVOID InputBuffer,
+	_In_ ULONG InputBufferLength,
+	_Out_writes_bytes_opt_(OutputBufferLength) PVOID OutputBuffer,
+	_In_ ULONG OutputBufferLength
+);

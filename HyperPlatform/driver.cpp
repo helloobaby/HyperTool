@@ -33,7 +33,7 @@ extern "C"
 
 
 //
-//ÊµÏÖÓÚsystemcall.cpp
+//å®ç°äºsystemcall.cpp
 //
 extern NTSTATUS InitSystemVar();
 extern void DoSystemCallHook();
@@ -119,35 +119,50 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 #ifdef HOOK_SYSCALL 
   InitUserSystemCallHandler(SystemCallLog);
 
-  //ÊÇ·ñÒª¿ªÆôKiSystemCall64µÄhook
+  //æ˜¯å¦è¦å¼€å¯KiSystemCall64çš„hook
   DoSystemCallHook();
 
 #endif
 
 #ifdef SERVICE_HOOK
+  
+  //hook NtOpenProcess
   AddServiceHook(UtilGetSystemProcAddress(L"NtOpenProcess"), DetourNtOpenProcess,(PVOID*)&OriNtOpenProcess);
+  //hook NtCreateFile
   AddServiceHook(UtilGetSystemProcAddress(L"NtCreateFile"), DetourNtCreateFile, (PVOID*)&OriNtCreateFile);
+  //hook NtWriteVirtualMemory
   AddServiceHook(
       PVOID(KernelBase + OffsetNtWriteVirtualMemory), 
       DetourNtWriteVirtualMemory, 
       (PVOID*)&OriNtWriteVirtualMemory
   );
+  //hook NtCreateThreadEx
   AddServiceHook(
       PVOID(KernelBase + OffsetNtCreateThreadEx),
       DetourNtCreateThreadEx,
       (PVOID*)&OriNtCreateThreadEx);
+
+  //hook NtAllocateVirtualMemory
   AddServiceHook(UtilGetSystemProcAddress(L"NtAllocateVirtualMemory"), DetourNtAllocateVirtualMemory,
       (PVOID*)&OriNtAllocateVirtualMemory);
 
+  //hook NtCreateThread
   AddServiceHook(
       PVOID(KernelBase + OffsetNtCreateThread),
       DetourNtCreateThread,
       (PVOID*)&OriNtCreateThread);
 
+  AddServiceHook(PVOID(KernelBase + OffsetNtDeviceIoControlFile),
+      DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile);
+
+
+#ifdef HIDE_WINDOW
   AddServiceHook(PVOID(Win32kfullBase + OffsetNtUserFindWindowEx),
       DetourNtUserFindWindowEx,
       (PVOID*)&OriNtUserFindWindowEx);
-
+#endif
+ 
+ 
 #endif 
 
 #ifdef HIDE_WINDOW
@@ -160,8 +175,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
 
   //
-  //±ãÓÚ²âÊÔ,ÆÁ±ÎµôĞéÄâ»¯µÄ¹¦ÄÜ
-  //ÓĞĞ©bugĞèÒª¹ØĞéÄâ»¯ºó¸´ÏÖÀ¶ÆÁ²ÅÄÜ·¢ÏÖ
+  //ä¾¿äºæµ‹è¯•,å±è”½æ‰è™šæ‹ŸåŒ–çš„åŠŸèƒ½
+  //æœ‰äº›bugéœ€è¦å…³è™šæ‹ŸåŒ–åå¤ç°è“å±æ‰èƒ½å‘ç°
   //
 #if 0
   return STATUS_SUCCESS;
@@ -191,7 +206,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   }
 
   // Initialize global variables
-  // µ÷ÓÃÈ«¾ÖÀàµÄ¹¹Ôìº¯Êı
+  // è°ƒç”¨å…¨å±€ç±»çš„æ„é€ å‡½æ•°
   //status = GlobalObjectInitialization();
   //if (!NT_SUCCESS(status)) {
     //LogTermination();
