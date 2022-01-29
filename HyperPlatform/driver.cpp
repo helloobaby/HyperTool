@@ -124,42 +124,48 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
 #endif
 
-#ifdef SERVICE_HOOK
-  
-  //hook NtOpenProcess
-  AddServiceHook(UtilGetSystemProcAddress(L"NtOpenProcess"), DetourNtOpenProcess,(PVOID*)&OriNtOpenProcess);
+#ifdef SERVICE_HOOK 
 
-  //hook NtCreateFile
-  AddServiceHook(UtilGetSystemProcAddress(L"NtCreateFile"), DetourNtCreateFile, (PVOID*)&OriNtCreateFile);
+  //hook NtOpenProcess vServcieHook[0]
+  AddServiceHook(UtilGetSystemProcAddress(L"NtOpenProcess"), DetourNtOpenProcess,(PVOID*)&OriNtOpenProcess,"NtOpenProcess");
 
-  //hook NtWriteVirtualMemory
+  //hook NtCreateFile vServcieHook[1]
+  AddServiceHook(UtilGetSystemProcAddress(L"NtCreateFile"), DetourNtCreateFile, (PVOID*)&OriNtCreateFile,"NtCreateFile");
+
+  //hook NtWriteVirtualMemory vServcieHook[2]
   AddServiceHook(
       PVOID(KernelBase + OffsetNtWriteVirtualMemory), 
       DetourNtWriteVirtualMemory, 
-      (PVOID*)&OriNtWriteVirtualMemory
+      (PVOID*)&OriNtWriteVirtualMemory,"NtWriteVirtualMemory"
   );
 
-
-  //hook NtCreateThreadEx
+  //hook NtCreateThreadEx vServcieHook[3]
   AddServiceHook(
       PVOID(KernelBase + OffsetNtCreateThreadEx),
       DetourNtCreateThreadEx,
-      (PVOID*)&OriNtCreateThreadEx);
+      (PVOID*)&OriNtCreateThreadEx,"NtCreateThreadEx");
 
-  //hook NtAllocateVirtualMemory
+  //hook NtAllocateVirtualMemory vServcieHook[4]
   AddServiceHook(UtilGetSystemProcAddress(L"NtAllocateVirtualMemory"), DetourNtAllocateVirtualMemory,
-      (PVOID*)&OriNtAllocateVirtualMemory);
+      (PVOID*)&OriNtAllocateVirtualMemory,"NtAllocateVirtualMemory");
 
-  //hook NtCreateThread
+  //hook NtCreateThread vServcieHook[5]
   AddServiceHook(
       PVOID(KernelBase + OffsetNtCreateThread),
       DetourNtCreateThread,
-      (PVOID*)&OriNtCreateThread);
+      (PVOID*)&OriNtCreateThread,"NtCreateThread");
 
-  //hook NtDeviceIoControlFile
+  //hook NtDeviceIoControlFile vServcieHook[6]
   AddServiceHook(PVOID(KernelBase + OffsetNtDeviceIoControlFile),
-      DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile);
+      DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile,"NtDeviceIoControlFile");
 #endif
+
+
+
+
+
+
+
 
 #ifdef HIDE_WINDOW
   AddServiceHook(PVOID(Win32kfullBase + OffsetNtUserFindWindowEx),

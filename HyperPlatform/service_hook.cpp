@@ -49,8 +49,11 @@ vector<MM_SESSION_SPACE*> vSesstionSpace;
 
 static vector<myUnicodeString> vHideWindow;
 
-LARGE_INTEGER time1{ -50 * 10000 }; //50ms
-LARGE_INTEGER time2{ -1000 * 10000 * 30 }; //30s
+LARGE_INTEGER MmOneSecond = { (ULONG)(-1 * 1000 * 1000 * 10), -1 };
+LARGE_INTEGER MmTwentySeconds = { (ULONG)(-20 * 1000 * 1000 * 10), -1 };
+LARGE_INTEGER MmShortTime = { (ULONG)(-10 * 1000 * 10), -1 }; // 10 milliseconds
+LARGE_INTEGER MmHalfSecond = { (ULONG)(-5 * 100 * 1000 * 10), -1 };
+LARGE_INTEGER Mm30Milliseconds = { (ULONG)(-30 * 1000 * 10), -1 };
 
 
 void ServiceHook::Construct()
@@ -349,12 +352,13 @@ void ServiceHook::Destruct()
 //
 // 开始hook
 //
-void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline)
+void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline,const char* funcName)
 {
 	ServiceHook tmp;
 	tmp.DetourFunc = Detour;
 	tmp.fp.GuestVA = HookFuncStart;
 	tmp.TrampolineFunc = TramPoline;
+	tmp.funcName = funcName;
 	tmp.Construct();
 	vServcieHook.push_back(tmp);
 }
@@ -401,10 +405,14 @@ void RemoveServiceHook()
 
 	for (auto& hook : vServcieHook)
 	{
+		while (hook.refCount != 0)
+		{
+			Log("ref count is %d\n", hook.refCount);
+			KeDelayExecutionThread(KernelMode, false, &MmOneSecond);
+		}
 		hook.Destruct();
+		Log("unload %s success\n", hook.funcName.c_str());
 	}
-
-	Log("unload hooks success\n");
 }
 
 
@@ -434,6 +442,7 @@ NTSTATUS DetourNtOpenProcess(
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 	NTSTATUS Status;
+	InterlockedAdd(&vServcieHook[0].refCount, 1);
 	//user code start
 
 
@@ -451,6 +460,7 @@ NTSTATUS DetourNtOpenProcess(
 
 	//usercode end
 	Status = OriNtOpenProcess(ProcessHandle, DesiredAccess, ObjectAttributes, ClientId);
+	InterlockedAdd(&vServcieHook[0].refCount, -1);
 	return Status;
 }
 
@@ -475,6 +485,7 @@ NTSTATUS DetourNtCreateFile(
 #endif // DBG
 
 	NTSTATUS Status;
+	InterlockedAdd(&vServcieHook[1].refCount, 1);
 	//user code start
 
 
@@ -504,6 +515,7 @@ NTSTATUS DetourNtCreateFile(
 		CreateOptions,
 		EaBuffer,
 		EaLength);
+	InterlockedAdd(&vServcieHook[1].refCount, -1);
 	return Status;
 }
 
@@ -524,6 +536,7 @@ NTSTATUS DetourNtWriteVirtualMemory(
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 	NTSTATUS Status;
+	InterlockedAdd(&vServcieHook[2].refCount, 1);
 	//user code start
 
 
@@ -557,6 +570,7 @@ NTSTATUS DetourNtWriteVirtualMemory(
 		Buffer,
 		BufferSize,
 		NumberOfBytesWritten);
+	InterlockedAdd(&vServcieHook[2].refCount, -1);
 	return Status;
 }
 
@@ -579,6 +593,7 @@ NTSTATUS DetourNtCreateThreadEx(
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 	NTSTATUS Status;
+	InterlockedAdd(&vServcieHook[3].refCount, 1);
 	//user code start
 
 
@@ -613,6 +628,7 @@ NTSTATUS DetourNtCreateThreadEx(
 		SizeOfStackCommit,
 		SizeOfStackReserve,
 		lpBytesBuffer);
+	InterlockedAdd(&vServcieHook[3].refCount, -1);
 	return Status;
 }
 
@@ -632,6 +648,7 @@ NTSTATUS DetourNtAllocateVirtualMemory(
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 	NTSTATUS Status;
+	InterlockedAdd(&vServcieHook[4].refCount, 1);
 	//user code start
 
 
@@ -654,6 +671,7 @@ NTSTATUS DetourNtAllocateVirtualMemory(
 		RegionSize,
 		AllocationType,
 		Protect);
+	InterlockedAdd(&vServcieHook[4].refCount, -1);
 	return Status;
 }
 
@@ -675,6 +693,7 @@ NTSTATUS DetourNtCreateThread(
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 	NTSTATUS Status;
+	InterlockedAdd(&vServcieHook[5].refCount, 1);
 	//user code start
 
 
@@ -702,6 +721,7 @@ NTSTATUS DetourNtCreateThread(
 		InitialTeb,
 		CreateSuspended
 	);
+	InterlockedAdd(&vServcieHook[5].refCount,-1);
 	return Status;
 }
 /*
@@ -750,7 +770,13 @@ HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
 	return hwnd;
 }
 
+/*
+2022.1.29
+真机下这个函数卸载不了，虚拟机没事,暂时不清楚问题在哪
 
+
+
+*/
 NTSTATUS DetourNtDeviceIoControlFile(
 	_In_ HANDLE FileHandle,
 	_In_opt_ HANDLE Event,
@@ -764,14 +790,20 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	_In_ ULONG OutputBufferLength
 )
 {
-
 #ifdef DBG
 	static int once = 0;
 	if (!(once++))
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 	NTSTATUS Status;
+	InterlockedAdd(&vServcieHook[6].refCount, 1);
 	//user code start
+
+
+
+
+
+
 
 
 
@@ -790,6 +822,7 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	//usercode end
 	Status = OriNtDeviceIoControlFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, IoControlCode, InputBuffer,
 		InputBufferLength, OutputBuffer, OutputBufferLength);
+	InterlockedAdd(&vServcieHook[6].refCount, -1);
 	return Status;
 
 }

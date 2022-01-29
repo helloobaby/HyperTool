@@ -1,6 +1,8 @@
 #pragma once
 #include"include/vector.hpp"
+#include"include/string.hpp"
 #include"FakePage.h"
+#include<stdint.h>
 
 typedef HANDLE  HWND;
 
@@ -48,6 +50,8 @@ struct ServiceHook : public ICFakePage
 	ULONG HookCodeLen;
 	bool isEverythignSuc;
 	bool isWin32Hook = false;
+	LONG refCount = 0;
+	std::string funcName;
 };
 
 
@@ -122,7 +126,7 @@ using NtDeviceIoControlFileType = decltype(&NtDeviceIoControlFile);
 //必须保证你这个要hook的函数在给rax赋值之前不使用rax，因为我们使用rax作为跳板
 //一般来说c/c++函数都不会使用rax，汇编函数就不一定了。比如系统调用时候rax为ssdt index
 //
-void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline);
+void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline,const char* funcName);
 
 void RemoveServiceHook();
 
