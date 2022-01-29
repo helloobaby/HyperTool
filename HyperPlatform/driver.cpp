@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2019, Satoshi Tanda. All rights reserved.
+﻿// Copyright (c) 2015-2019, Satoshi Tanda. All rights reserved.
 // Use of this source code is governed by a MIT-style license that can be
 // found in the LICENSE file.
 
@@ -139,6 +139,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       (PVOID*)&OriNtWriteVirtualMemory
   );
 
+
   //hook NtCreateThreadEx
   AddServiceHook(
       PVOID(KernelBase + OffsetNtCreateThreadEx),
@@ -158,7 +159,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   //hook NtDeviceIoControlFile
   AddServiceHook(PVOID(KernelBase + OffsetNtDeviceIoControlFile),
       DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile);
-
+#endif
 
 #ifdef HIDE_WINDOW
   AddServiceHook(PVOID(Win32kfullBase + OffsetNtUserFindWindowEx),
@@ -167,7 +168,6 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 #endif
  
  
-#endif 
 
 #ifdef HIDE_WINDOW
   Window::Init();

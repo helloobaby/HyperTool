@@ -31021,3 +31021,13 @@ constexpr ULONG OffsetRtlpUnwindHistoryTable = 0xe01950;
 constexpr ULONG OffsetKeSkNtFunctions = 0xe01a30;
 constexpr ULONG OffsetHalpIumEfiWrapperTable = 0xe01a80;
 constexpr ULONG OffsetRtlRetpolineStubsFunctionTable = 0xe01ad0;
+
+
+
+//
+
+constexpr ULONG SessionOffsetFromEprocess = 0x558;
+
+
+
+#define WIN11

@@ -27,6 +27,7 @@
     <Platform Condition="'$(Platform)' == ''">Win32</Platform>
     <RootNamespace>HyperPlatform</RootNamespace>
     <WindowsTargetPlatformVersion>$(LatestTargetPlatformVersion)</WindowsTargetPlatformVersion>
+    <ProjectName>HyperTool</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
@@ -48,6 +49,12 @@
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <Inf2CatUseLocalTime>true</Inf2CatUseLocalTime>
     <CodeAnalysisRuleSet>HyperPlatform.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <EnableInf2cat>false</EnableInf2cat>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <EnableInf2cat>false</EnableInf2cat>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -105,6 +112,10 @@
     <ClInclude Include="include\PDBSDK.h" />
     <ClInclude Include="include\sect_attribs.h" />
     <ClInclude Include="include\string.hpp" />
+    <ClInclude Include="include\system\win10_17763_2366.h" />
+    <ClInclude Include="include\system\win10_17763_316.h" />
+    <ClInclude Include="include\system\win10_17763_437.h" />
+    <ClInclude Include="include\system\win11_22000_194.h" />
     <ClInclude Include="include\type_traits.hpp" />
     <ClInclude Include="include\vector.hpp" />
     <ClInclude Include="include\write_protect.h" />

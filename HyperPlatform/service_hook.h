@@ -36,7 +36,6 @@ typedef struct _MM_SESSION_SPACE                      // 50 elements, 0x5000 byt
 	/*0x040*/      VOID* PagedPoolEnd;
 	/*0x048*/      VOID* SessionObject;
 	/*0x050*/      VOID* SessionObjectHandle;
-	/*0x058*/      ULONG32      SessionPoolAllocationFailures[4];
 }MM_SESSION_SPACE, * PMM_SESSION_SPACE;
 
 struct ServiceHook : public ICFakePage
@@ -51,27 +50,6 @@ struct ServiceHook : public ICFakePage
 	bool isWin32Hook = false;
 };
 
-
-__kernel_entry NTSYSCALLAPI NTSTATUS NtOpenProcess(
-	PHANDLE            ProcessHandle,
-	ACCESS_MASK        DesiredAccess,
-	POBJECT_ATTRIBUTES ObjectAttributes,
-	PCLIENT_ID         ClientId
-);
-
- NTSYSCALLAPI NTSTATUS NtCreateFile(
-	PHANDLE            FileHandle,
-	ACCESS_MASK        DesiredAccess,
-	POBJECT_ATTRIBUTES ObjectAttributes,
-	PIO_STATUS_BLOCK   IoStatusBlock,
-	PLARGE_INTEGER     AllocationSize,
-	ULONG              FileAttributes,
-	ULONG              ShareAccess,
-	ULONG              CreateDisposition,
-	ULONG              CreateOptions,
-	PVOID              EaBuffer,
-	ULONG              EaLength
-);
 
  NTSTATUS NtWriteVirtualMemory(
 	 IN HANDLE ProcessHandle,

@@ -23,6 +23,9 @@
     <Filter Include="STL">
       <UniqueIdentifier>{0d4b76ef-5687-482e-b446-fa92e2fdb4d1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="system_include">
+      <UniqueIdentifier>{a4b2b374-4ab3-4f74-913d-67adaafc960a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="HyperPlatform.inf">
@@ -211,6 +214,18 @@
     </ClInclude>
     <ClInclude Include="include\PDBSDK.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\system\win10_17763_316.h">
+      <Filter>system_include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\system\win10_17763_437.h">
+      <Filter>system_include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\system\win10_17763_2366.h">
+      <Filter>system_include</Filter>
+    </ClInclude>
+    <ClInclude Include="include\system\win11_22000_194.h">
+      <Filter>system_include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

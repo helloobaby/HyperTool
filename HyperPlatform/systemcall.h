@@ -96,7 +96,8 @@ struct fpSystemCall :public ICFakePage
 	virtual void Construct() override
 	{
 		fp.GuestVA = (PVOID)((KiSystemServiceStart >> 12) << 12);
-		fp.PageContent = ExAllocatePoolWithQuota(NonPagedPool, PAGE_SIZE);
+		fp.PageContent = ExAllocatePoolWithQuotaTag(NonPagedPool, PAGE_SIZE,'sbb');
+		
 		memcpy(fp.PageContent, fp.GuestVA, PAGE_SIZE);
 
 		//

@@ -46619,3 +46619,10 @@ constexpr ULONG Offset__ps_a = 0x98e000;
 
 constexpr ULONG OffsetNtUserFindWindowEx = 0x73620;
 constexpr ULONG OffsetgpKernelHandleTable = 0x1ddc08;
+
+
+
+
+//
+
+constexpr ULONG SessionOffsetFromEprocess = 0x400;

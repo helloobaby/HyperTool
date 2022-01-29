@@ -185,7 +185,7 @@ void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
 		Log("[SysCallCount]at %p\n", &SysCallCount);
 		Log("[SYSCALL]%s\nIndex %x\nTarget %llx\n", GetSyscallProcess(), SSDT_INDEX, GetSSDTEntry(SSDT_INDEX));
 	}
-	InterlockedAdd64(&SysCallCount, 1);
+	SysCallCount++;
 #endif
 
 	//然后应该调用用户给的处理函数，如果没有提供，则使用默认的

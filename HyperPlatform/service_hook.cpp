@@ -49,6 +49,10 @@ vector<MM_SESSION_SPACE*> vSesstionSpace;
 
 static vector<myUnicodeString> vHideWindow;
 
+LARGE_INTEGER time1{ -50 * 10000 }; //50ms
+LARGE_INTEGER time2{ -1000 * 10000 * 30 }; //30s
+
+
 void ServiceHook::Construct()
 {
 
@@ -59,7 +63,7 @@ void ServiceHook::Construct()
 		pfMmGetSessionById = (MmGetSessionByIdType)(KernelBase + OffsetMmGetSessionById);
 	
 	//引入一个bool init，来做只需要一次的初始化工作
-	if (!init) {
+	if (!init) { //bool init start
 
 		vHideWindow.push_back(ux64dbg);
 		vHideWindow.push_back(uxdbg64);
@@ -68,8 +72,11 @@ void ServiceHook::Construct()
 		vHideWindow.push_back(uCheatEngine73);
 
 
-
+#ifndef WIN11
 		pfMiAttachSession = (MiAttachSessionType)(KernelBase + OffsetMiAttachSession);
+#else
+		pfMiAttachSession = (MiAttachSessionType)(KernelBase + OffsetMiAttachSessionGlobal);
+#endif
 		pfMiDetachProcessFromSession = (MiDetachProcessFromSessionType)(KernelBase + OffsetMiDetachProcessFromSession);
 
 		//
@@ -78,7 +85,10 @@ void ServiceHook::Construct()
 			PEPROCESS Process = pfMmGetSessionById(i);
 			if (Process)
 			{
-				SystemSesstionSpace = *(MM_SESSION_SPACE**)((ULONG_PTR)Process + 0x400);
+				//EPROCESS
+				///*0x400*/     struct _MM_SESSION_SPACE* Session;
+				//
+				SystemSesstionSpace = *(MM_SESSION_SPACE**)((ULONG_PTR)Process + SessionOffsetFromEprocess);
 				vSesstionSpace.push_back(SystemSesstionSpace);
 
 			}
@@ -98,12 +108,17 @@ void ServiceHook::Construct()
 		}
 #endif // DBG
 
-		
+
+
+
+
+
+
 
 		init = true;
+	}// bool init end
 
 
-	}
 #if 0
 	for (int i = 8;;)
 	{
@@ -204,7 +219,7 @@ pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV 
 		//this->fp.GuestPA = MmGetPhysicalAddress(tmp);
 	}
 #endif
-	this->fp.PageContent = ExAllocatePoolWithQuota(NonPagedPool, PAGE_SIZE);
+	this->fp.PageContent = ExAllocatePoolWithQuotaTag(NonPagedPool, PAGE_SIZE,'sbb');
 
 	//拷贝原先页面,拷贝的时候每个页面的内容都一样，写的时候就要分别写了。
 	if (this->isWin32Hook) {
@@ -276,8 +291,14 @@ pfn 1208      ---DA--KWEV  pfn 1209      ---DA--KWEV  pfn 1217      ---DA--KWEV 
 
 	this->isEverythignSuc = true;
 
+
+
+
+
+
+
+
 }
-#pragma optimize( "", on )
 
 void ServiceHook::Destruct()
 {
@@ -341,12 +362,49 @@ void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline)
 //
 // 卸载hook
 //
+
+/*
+
+.text:00000000000066FF                 mov     rax, OriNtAllocateVirtualMemory
+.text:0000000000006706                 mov     [rsp+68h+var_18], rax
+.text:000000000000670B                 mov     rax, [rsp+68h+var_18]
+.text:0000000000006710                 mov     [rsp+68h+var_10], rax
+.text:0000000000006715                 mov     eax, [rsp+68h+Protect]
+.text:000000000000671C                 mov     dword ptr [rsp+68h+HandleInformation], eax
+.text:0000000000006720                 mov     eax, [rsp+68h+AllocationType]
+.text:0000000000006727                 mov     dword ptr [rsp+68h+Object], eax
+.text:000000000000672B                 mov     r9, [rsp+68h+arg_18]
+.text:0000000000006733                 mov     r8, [rsp+68h+arg_10]
+.text:000000000000673B                 mov     rdx, [rsp+68h+arg_8]
+.text:0000000000006740                 mov     rcx, [rsp+68h+Handle]
+.text:0000000000006745                 mov     rax, [rsp+68h+var_10]
+.text:000000000000674A                 call    cs:__guard_dispatch_icall_fptr
+.text:0000000000006750                 add     rsp, 68h  --->这个地方bugcheck
+.text:0000000000006754                 retn
+
+上面那种情况是因为执行原操作系统的函数的时候，驱动卸载了，回来的时候找不到代码了,维护个引用计数能好点
+
+00 ffffdd07`221dade8 fffff807`25732d72     nt!DbgBreakPointWithStatus
+01 ffffdd07`221dadf0 fffff807`257324f7     nt!KiBugCheckDebugBreak+0x12
+02 ffffdd07`221dae50 fffff807`25655837     nt!KeBugCheck2+0x957
+03 ffffdd07`221db570 fffff807`256f97b6     nt!KeBugCheckEx+0x107
+04 ffffdd07`221db5b0 fffff807`2556a3d7     nt!MiSystemFault+0x130186
+05 ffffdd07`221db6f0 fffff807`25663183     nt!MmAccessFault+0x327
+06 ffffdd07`221db890 fffff802`dfe06750     nt!KiPageFault+0x343
+07 ffffdd07`221dba20 ffffffff`ffffffff     <Unloaded_HyperTool.sys>+0x6750
+08 ffffdd07`221dba28 ffffa38f`068b7080     0xffffffff`ffffffff
+09 ffffdd07`221dba30 00000000`00000000     0xffffa38f`068b7080
+*/
 void RemoveServiceHook()
 {
+
+
 	for (auto& hook : vServcieHook)
 	{
 		hook.Destruct();
 	}
+
+	Log("unload hooks success\n");
 }
 
 
@@ -371,14 +429,29 @@ NTSTATUS DetourNtOpenProcess(
 )
 {
 #ifdef DBG
-
 	static int once = 0;
 	if (!(once++))
 		Log("[HOOK_LOG]%s\n", __func__);
-
 #endif // DBG
+	NTSTATUS Status;
+	//user code start
 
-	return OriNtOpenProcess(ProcessHandle, DesiredAccess, ObjectAttributes, ClientId);
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//usercode end
+	Status = OriNtOpenProcess(ProcessHandle, DesiredAccess, ObjectAttributes, ClientId);
+	return Status;
 }
 
 NTSTATUS DetourNtCreateFile(
@@ -401,7 +474,25 @@ NTSTATUS DetourNtCreateFile(
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
 
-	return OriNtCreateFile(
+	NTSTATUS Status;
+	//user code start
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//usercode end
+	Status = OriNtCreateFile(
 		FileHandle,
 		DesiredAccess,
 		ObjectAttributes,
@@ -413,6 +504,7 @@ NTSTATUS DetourNtCreateFile(
 		CreateOptions,
 		EaBuffer,
 		EaLength);
+	return Status;
 }
 
 //
@@ -431,27 +523,41 @@ NTSTATUS DetourNtWriteVirtualMemory(
 	if (!(once++))
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
+	NTSTATUS Status;
+	//user code start
 
-	NTSTATUS Status STATUS_UNSUCCESSFUL;
 
-	PEPROCESS Process = NULL;
-	Status = ObReferenceObjectByHandle(ProcessHandle,
-		PROCESS_VM_WRITE,
-		*PsProcessType,
-		UserMode,
-		(PVOID*)&Process,
-		NULL);
 
-	if (Process)
-	{
-		unsigned char* Image = PsGetProcessImageFileName(Process);
-	}
-	return OriNtWriteVirtualMemory(
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//usercode end
+	Status = OriNtWriteVirtualMemory(
 		ProcessHandle,
 		BaseAddress,
 		Buffer,
 		BufferSize,
 		NumberOfBytesWritten);
+	return Status;
 }
 
 NTSTATUS DetourNtCreateThreadEx(
@@ -472,30 +578,42 @@ NTSTATUS DetourNtCreateThreadEx(
 	if (!(once++))
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
-
-	NTSTATUS Status STATUS_UNSUCCESSFUL;
-
-	PEPROCESS Process = NULL;
-	Status = ObReferenceObjectByHandle(ProcessHandle,
-		PROCESS_VM_WRITE,
-		*PsProcessType,
-		UserMode,
-		(PVOID*)&Process,
-		NULL);
+	NTSTATUS Status;
+	//user code start
 
 
-	return OriNtCreateThreadEx(
-		hThread, 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//usercode end
+	Status = OriNtCreateThreadEx(
+		hThread,
 		DesiredAccess,
-		ObjectAttributes, 
+		ObjectAttributes,
 		ProcessHandle,
 		lpStartAddress,
 		lpParameter,
 		Flags,
-		StackZeroBits, 
-		SizeOfStackCommit, 
+		StackZeroBits,
+		SizeOfStackCommit,
 		SizeOfStackReserve,
 		lpBytesBuffer);
+	return Status;
 }
 
 //监控内存分配
@@ -513,29 +631,30 @@ NTSTATUS DetourNtAllocateVirtualMemory(
 	if (!(once++))
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
-
-	NTSTATUS Status STATUS_UNSUCCESSFUL;
-
-	PEPROCESS Process = NULL;
-	Status = ObReferenceObjectByHandle(ProcessHandle,
-		PROCESS_VM_WRITE,
-		*PsProcessType,
-		UserMode,
-		(PVOID*)&Process,
-		NULL);
+	NTSTATUS Status;
+	//user code start
 
 
 
 
 
 
-	return OriNtAllocateVirtualMemory(
+
+
+
+
+
+
+
+	//usercode end
+	Status = OriNtAllocateVirtualMemory(
 		ProcessHandle,
 		BaseAddress,
 		ZeroBits,
 		RegionSize,
 		AllocationType,
 		Protect);
+	return Status;
 }
 
 
@@ -555,19 +674,25 @@ NTSTATUS DetourNtCreateThread(
 	if (!(once++))
 		Log("[HOOK_LOG]%s\n", __func__);
 #endif // DBG
+	NTSTATUS Status;
+	//user code start
 
 
-	NTSTATUS Status STATUS_UNSUCCESSFUL;
 
-	PEPROCESS Process = NULL;
-	Status = ObReferenceObjectByHandle(ProcessHandle,
-		PROCESS_VM_WRITE,
-		*PsProcessType,
-		UserMode,
-		(PVOID*)&Process,
-		NULL);
 
-	return OriNtCreateThread(
+
+
+
+
+
+
+
+
+
+
+
+	//usercode end
+	Status = OriNtCreateThread(
 		ThreadHandle,
 		DesiredAccess,
 		ObjectAttributes,
@@ -577,6 +702,7 @@ NTSTATUS DetourNtCreateThread(
 		InitialTeb,
 		CreateSuspended
 	);
+	return Status;
 }
 /*
 hook win32k 函数的注意事项
@@ -601,14 +727,27 @@ HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
 	IN PUNICODE_STRING pstrClassName,
 	IN PUNICODE_STRING pstrWindowName)
 {
+#ifdef DBG
+	static int once = 0;
+	if (!(once++))
+		Log("[HOOK_LOG]%s\n", __func__);
+#endif // DBG
+	HWND hwnd;
 
-
+	//user code start
 
 	for (auto window : vHideWindow) {
 		if (!RtlCompareUnicodeString(pstrWindowName, &window, 1))
 			return 0;
 	}
-	return OriNtUserFindWindowEx(hwndParent, hwndChild, pstrClassName, pstrWindowName);
+
+
+
+	//user code end
+
+
+	hwnd = OriNtUserFindWindowEx(hwndParent, hwndChild, pstrClassName, pstrWindowName);
+	return hwnd;
 }
 
 
@@ -625,34 +764,32 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	_In_ ULONG OutputBufferLength
 )
 {
-	NTSTATUS status;
-	FILE_OBJECT* FileObject;
-	status = ObReferenceObjectByHandle(FileHandle, FILE_ALL_ACCESS, *IoFileObjectType, KernelMode, (PVOID*)&FileObject, NULL);
-	
-	
-	if (NT_SUCCESS(status)) {
 
-		unsigned char* Image = PsGetProcessImageFileName(IoGetCurrentProcess());
-
-		if (!strcmp((const char*)Image, "vssadmin.exe") || !strcmp((const char*)Image, "wmic.exe"))
-		{
-			POBJECT_NAME_INFORMATION p = NULL;
-			status = IoQueryFileDosDeviceName(FileObject, &p);
-
-			if (p && NT_SUCCESS(status)) {
-
-			Log("[service]%wZ  [ioctl-code] %x\n", p->Name, IoControlCode);
-			
-			}
+#ifdef DBG
+	static int once = 0;
+	if (!(once++))
+		Log("[HOOK_LOG]%s\n", __func__);
+#endif // DBG
+	NTSTATUS Status;
+	//user code start
 
 
 
-			ExFreePool(p);
-		}
-
-	}
 
 
-	return OriNtDeviceIoControlFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, IoControlCode, InputBuffer,
+
+
+
+
+
+
+
+
+
+
+	//usercode end
+	Status = OriNtDeviceIoControlFile(FileHandle, Event, ApcRoutine, ApcContext, IoStatusBlock, IoControlCode, InputBuffer,
 		InputBufferLength, OutputBuffer, OutputBufferLength);
+	return Status;
+
 }

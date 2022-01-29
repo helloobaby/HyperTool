@@ -73,7 +73,7 @@ static volatile LONG g_ExclpNumberOfLockedProcessors = 0;
 _Use_decl_annotations_ EXTERN_C
 void* ExclGainExclusivity()
 {
-    NT_ASSERT(InterlockedAdd(&g_ExclpNumberOfLockedProcessors, 0) == 0);
+    InterlockedAdd(&g_ExclpNumberOfLockedProcessors, 0);
     _InterlockedAnd(&g_ExclpReleaseAllProcessors, 0);
 
     const auto numberOfProcessors = KeQueryActiveProcessorCount(nullptr);
@@ -90,7 +90,6 @@ void* ExclGainExclusivity()
     // Execute a lock DPC for all processors but this.
     /*
     If the call to KeGetCurrentProcessorNumber occurs at IRQL <= APC_LEVEL, a processor switch can occur between instructions. Consequently, callers of KeGetCurrentProcessorNumber usually run at IRQL >= DISPATCH_LEVEL.
-    提升Irql 有风险，尽量冻结前后使用少的代码
     */
     context->OldIrql = KeRaiseIrqlToDpcLevel();
     const auto currentCpu = KeGetCurrentProcessorNumber();
