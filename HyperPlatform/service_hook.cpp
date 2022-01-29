@@ -772,7 +772,7 @@ HWND DetourNtUserFindWindowEx(  // API FindWindowA/W, FindWindowExA/W
 
 /*
 2022.1.29
-真机下这个函数卸载不了,引用计数一直是1,虚拟机没事,暂时不清楚问题在哪
+真机下这个函数卸载不了,引用计数一直是1或2,虚拟机没事,暂时不清楚问题在哪
 
 
 
@@ -798,10 +798,6 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	NTSTATUS Status;
 	InterlockedAdd(&vServcieHook[6].refCount, 1);
 	//user code start
-
-
-
-
 
 
 

@@ -19,5 +19,28 @@ PDBSDK.h
 
 
 
+## Known bug:
+
+1.failed to unhook NtDeviceIoControlFile(reference is not zero)  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
