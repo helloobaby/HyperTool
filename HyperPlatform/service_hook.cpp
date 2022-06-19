@@ -83,6 +83,8 @@ void ServiceHook::Construct()
 		pfMiDetachProcessFromSession = (MiDetachProcessFromSessionType)(KernelBase + OffsetMiDetachProcessFromSession);
 
 		//
+		//一般来说单用户,只有两个sessionid,一个是0(system),一个是1(有可能不是1)
+		//
 		for (int i = 0; i < 1000; i++)
 		{
 			PEPROCESS Process = pfMmGetSessionById(i);
@@ -97,19 +99,6 @@ void ServiceHook::Construct()
 			}
 		}
 		//
-
-
-
-#ifdef DBG
-		for (auto session : vSesstionSpace)
-		{
-			Log("Session ID %d\n", session->SessionId);
-
-			//起始地址和结束地址基本都一样
-			Log("PagedPoolStart %p\n", session->PagedPoolStart);
-			Log("PagedPoolEnd %p\n", session->PagedPoolEnd);
-		}
-#endif // DBG
 
 
 
@@ -411,7 +400,7 @@ void RemoveServiceHook()
 			KeDelayExecutionThread(KernelMode, false, &MmOneSecond);
 		}
 		hook.Destruct();
-		Log("unload %s success\n", hook.funcName.c_str());
+		Log("unload hook func %s success\n", hook.funcName.c_str());
 	}
 }
 

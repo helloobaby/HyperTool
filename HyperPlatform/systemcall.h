@@ -56,7 +56,9 @@ extern "C"
 {
 	inline const ULONG KernelSize = 0xa6e000; //hard signature
 	inline ULONG_PTR KernelBase = NULL;
+	//win32kfull.sys
 	inline ULONG_PTR Win32kfullBase = NULL;
+	//win32kbase.sys
 	inline ULONG_PTR Win32kbaseBase = NULL;
 	inline ULONG Win32kfullSize = NULL;
 	inline ULONG_PTR PspCidTable;
