@@ -1,4 +1,4 @@
-﻿// Hyper tool client
+﻿// Hypertool client
 
 #include <iostream>
 

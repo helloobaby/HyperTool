@@ -19,11 +19,9 @@
 #include "vm.h"
 #include "performance.h"
 #include "systemcall.h"
-#include "settings.h"
 #include"include/global.hpp"
 #include"service_hook.h"
 #include"device.h"
-#include"window.h"
 
 extern "C"
 {
@@ -134,50 +132,14 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
   if (!NT_SUCCESS(status))
   {
+      LogTermination();
       return STATUS_UNSUCCESSFUL;
   }
 
-  // 这里相当于给使用者提供一个接口,接管Syscall的
-  InitUserSystemCallHandler(SystemCallLog);
-
   DoSystemCallHook();
 
+  // #define NtCreateFileHookIndex 0
   AddServiceHook(UtilGetSystemProcAddress(L"NtCreateFile"), DetourNtCreateFile, (PVOID*)&OriNtCreateFile,"NtCreateFile");
-
-  return STATUS_SUCCESS;
-
-#ifdef HIDE_WINDOW
-  AddServiceHook(PVOID(Win32kfullBase + OffsetNtUserFindWindowEx),
-      DetourNtUserFindWindowEx,
-      (PVOID*)&OriNtUserFindWindowEx);
-#endif
- 
- 
-
-#ifdef HIDE_WINDOW
-  Window::Init();
-  //AttackWindowTable();
-#endif // HIDE_WINDOW
-
-
-
-
-
-  //
-  //便于测试,屏蔽掉虚拟化的功能
-  //有些bug需要关虚拟化后复现蓝屏才能发现
-  //
-#if 0
-  return STATUS_SUCCESS;
-#endif
-
-  // Initialize global variables
-  // 调用全局类的构造函数
-  //status = GlobalObjectInitialization();
-  //if (!NT_SUCCESS(status)) {
-    //LogTermination();
-    //return status;
-  //}
 
   // Initialize perf functions
   status = PerfInitialization();
@@ -220,6 +182,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
     LogTermination();
     return status;
   }
+
+  //return STATUS_SUCCESS;
 
   // Virtualize all processors
   status = VmInitialization();

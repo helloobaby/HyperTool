@@ -13,9 +13,6 @@
 #include "log.h"
 #include "util.h"
 #include "performance.h"
-#include "settings.h"
-
-#define MAX_SUPPORT_PROCESS 100
 
 //
 //如果此驱动需要在vmware中测试，定义此宏
@@ -23,9 +20,6 @@
 #define VMWARE
 
 extern "C" {
-
-NTSYSAPI const char *PsGetProcessImageFileName(PEPROCESS Process);
-
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -89,11 +83,6 @@ struct VmExitHistory {
 //
 // prototypes
 //
-
-//
-//获得本次vm-exit的进程名
-//
-const char* GetVmExitProcess();
 
 bool __stdcall VmmVmExitHandler(_Inout_ VmmInitialStack *stack);
 
@@ -193,11 +182,6 @@ static VmExitHistory g_vmmp_vm_exit_history[kVmmpNumberOfProcessors]
 //
 // implementations
 //
-
-const char* GetVmExitProcess()
-{
-    return PsGetProcessImageFileName(IoGetCurrentProcess());
-}
 
 
 
@@ -645,6 +629,7 @@ generate an exception.
 MSR address range between 40000000H - 400000FFH is marked as a specially reserved range. All existing and
 future processors will not implement any features using any MSR in this range.
 */
+#define HV_X64_MSR_GUEST_IDLE 0x400000F0
 _Use_decl_annotations_ static void VmmpHandleMsrAccess(
     GuestContext *guest_context, bool read_access) {
   // Apply it for VMCS instead of a real MSR if a specified MSR is either of
@@ -652,6 +637,7 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
   const auto msr = static_cast<Msr>(guest_context->gp_regs->cx);
 
   bool is_vaild_msr = false;
+
   //
   //对不支持的msr注入#gp
   //
@@ -662,17 +648,10 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
       is_vaild_msr = true;
 
 
-  if (!is_vaild_msr
-#ifdef VMWARE //在vmware上测试要加上，有个叫PpmIdleGuestExecute会rdmsr 0x400000F0u
-      && (guest_context->gp_regs->cx != 0x400000f0)
-#endif
-      )
+  if (!is_vaild_msr && (guest_context->gp_regs->cx != HV_X64_MSR_GUEST_IDLE)) 
   {
-      /*
-      * 在vmware下，不支持的msr，会返回未定义的值，而不会蓝屏
-      * 真实机子下这样的话不try-catch是要蓝屏的
-      */
-#if 1
+      //在vmware下，不支持的msr，会返回未定义的值，而不会蓝屏
+      //真实机子下这样的话不try-catch是要蓝屏的,所以我们要注入给guest一个#GP   
       VmmpInjectInterruption(
           InterruptionType::kHardwareException,
           InterruptionVector::kGeneralProtectionException,
@@ -681,7 +660,6 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
 
       VmmpAdjustGuestInstructionPointer(guest_context);
       return;
-#endif 
   }
 
   //

@@ -13,7 +13,6 @@
 #include "util.h"
 #include "performance.h"
 #include "systemcall.h"
-#include "settings.h"
 #include"include/vector.hpp"
 #include"service_hook.h"
 
@@ -680,10 +679,8 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
   //对我们需要隐藏的内存做特殊处理
   //
 
-#ifdef HOOK_SYSCALL
-//system call
   if (fault_pa >= SystemCallFake.fp.GuestPA.QuadPart && 
-      fault_pa <= SystemCallFake.fp.GuestPA.QuadPart + 0x1000)
+      fault_pa <= SystemCallFake.fp.GuestPA.QuadPart + PAGE_SIZE)
   {
       const auto ept_entry = EptGetEptPtEntry(ept_data, fault_pa);
 
@@ -706,17 +703,14 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
       UtilInveptGlobal();
       return;
   }
-//
-#endif // HOOK_SYSCALL
 
-#ifdef SERVICE_HOOK
   for (auto& service_hook : vServcieHook)
   {
       if (!service_hook.isEverythignSuc)
           continue;
 
       if (fault_pa >= service_hook.fp.GuestPA.QuadPart &&
-          fault_pa <= service_hook.fp.GuestPA.QuadPart + 0x1000)
+          fault_pa <= service_hook.fp.GuestPA.QuadPart + PAGE_SIZE)
       {
           const auto ept_entry = EptGetEptPtEntry(ept_data, fault_pa);
           if (!ept_entry->fields.read_access && !ept_entry->fields.write_access)
@@ -739,7 +733,6 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
           is_handled = true;
       }
   }
-#endif // SERVICE_HOOK
 
   //是我们的ept hook导致的vm-exit吗
   if (is_handled)
@@ -908,31 +901,20 @@ _Use_decl_annotations_ static void EptpDestructTables(EptCommonEntry *table,
 
 void EptFixOriginEpt(EptData* const EptData)
 {
-    /*
-    * 对原来正常的ept打补丁
-    */
-
-
-    //这里要左移12，因为这里的物理地址是已经页对齐的
-#ifdef HOOK_SYSCALL
     auto ept_entry = EptGetEptPtEntry(EptData, SystemCallFake.fp.GuestPA.QuadPart);
     ept_entry->fields.read_access = 0;
     ept_entry->fields.write_access = 0;
     ept_entry->fields.execute_access = 1;
-#endif 
 
-#ifdef SERVICE_HOOK
     for (auto& service_hook : vServcieHook)
     {
         if (!service_hook.isEverythignSuc)
             continue;
-        auto ept_entry = EptGetEptPtEntry(EptData, service_hook.fp.GuestPA.QuadPart);
+        ept_entry = EptGetEptPtEntry(EptData, service_hook.fp.GuestPA.QuadPart);
         ept_entry->fields.read_access = 0;
         ept_entry->fields.write_access = 0;
         ept_entry->fields.execute_access = 1;
     }
-#endif // SERVICE_HOOK
-
 
 }
 

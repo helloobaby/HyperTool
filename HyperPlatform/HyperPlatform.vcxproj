@@ -42,6 +42,9 @@
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
   </PropertyGroup>
+  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings" />
   <ImportGroup Label="PropertySheets">
@@ -69,6 +72,8 @@
       <DisableSpecificWarnings>5040;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</TreatWarningAsError>
       <TreatWarningAsError Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</TreatWarningAsError>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">_VCRUNTIME_DISABLED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">_VCRUNTIME_DISABLED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link />
   </ItemDefinitionGroup>
@@ -97,7 +102,6 @@
     <ClCompile Include="util.cpp" />
     <ClCompile Include="vm.cpp" />
     <ClCompile Include="vmm.cpp" />
-    <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asm.h" />
@@ -113,13 +117,8 @@
     <ClInclude Include="include\exclusivity.h" />
     <ClInclude Include="include\global.hpp" />
     <ClInclude Include="include\handle.h" />
-    <ClInclude Include="include\PDBSDK.h" />
     <ClInclude Include="include\sect_attribs.h" />
     <ClInclude Include="include\string.hpp" />
-    <ClInclude Include="include\system\win10_17763_2366.h" />
-    <ClInclude Include="include\system\win10_17763_316.h" />
-    <ClInclude Include="include\system\win10_17763_437.h" />
-    <ClInclude Include="include\system\win11_22000_194.h" />
     <ClInclude Include="include\type_traits.hpp" />
     <ClInclude Include="include\vector.hpp" />
     <ClInclude Include="include\write_protect.h" />
@@ -136,13 +135,11 @@
     <ClInclude Include="perf_counter.h" />
     <ClInclude Include="power_callback.h" />
     <ClInclude Include="service_hook.h" />
-    <ClInclude Include="settings.h" />
     <ClInclude Include="systemcall.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="util_page_constants.h" />
     <ClInclude Include="vm.h" />
     <ClInclude Include="vmm.h" />
-    <ClInclude Include="window.h" />
   </ItemGroup>
   <ItemGroup>
     <MASM Include="Arch\x64\x64.asm">

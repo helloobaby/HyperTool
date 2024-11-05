@@ -1,6 +1,4 @@
 #include "device.h"
-#include "window.h"
-#include "settings.h"
 #include "log.h"
 
 static UNICODE_STRING uDevice = RTL_CONSTANT_STRING(DEVICE_NAME);

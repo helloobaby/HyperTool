@@ -5,8 +5,6 @@
 #include "FakePage.h"
 #include "error_bugcheck.h"
 
-#include "include/PDBSDK.h"
-
 typedef struct _SYSTEM_SERVICE_DESCRIPTOR_TABLE
 {
 	PULONG_PTR ServiceTableBase;

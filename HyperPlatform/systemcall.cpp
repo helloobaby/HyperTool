@@ -2,7 +2,6 @@
 #include "ia32_type.h"
 #include "systemcall.h"
 #include "include/write_protect.h"
-#include "settings.h"
 
 extern "C"
 {
@@ -10,14 +9,7 @@ extern "C"
 	// 我们的Syscall Handler
 	extern "C" void DetourKiSystemServiceStart();
 
-	NTSYSAPI const char* PsGetProcessImageFileName(PEPROCESS Process);
-
-	NTKERNELAPI
-		PIMAGE_NT_HEADERS
-		NTAPI
-		RtlImageNtHeader(
-			_In_ PVOID Base
-		);
+	NTSYSAPI PIMAGE_NT_HEADERS NTAPI RtlImageNtHeader(_In_ PVOID Base);
 }
 
 
@@ -25,12 +17,6 @@ fpSystemCall SystemCallFake;
 
 char SystemCallRecoverCode[15] = {};
 NTSTATUS HookStatus = STATUS_UNSUCCESSFUL;
-
-
-const char* GetSyscallProcess()
-{
-	return PsGetProcessImageFileName(IoGetCurrentProcess());
-}
 
 
 //copy from blackbone
@@ -140,12 +126,12 @@ NTSTATUS InitSystemVar()
 	/*
 nt!KiSystemServiceStart:
 fffff805`5cbc50f0 4889a390000000  mov     qword ptr [rbx+90h],rsp
-fffff805`5cbc50f7 8bf8            mov     edi,eax                  <--- KiSystemServiceStartPattern   
+fffff805`5cbc50f7 8bf8            mov     edi,eax                  <--- KiSystemServiceStartPattern
 fffff805`5cbc50f9 c1ef07          shr     edi,7
 fffff805`5cbc50fc 83e720          and     edi,20h
 fffff805`5cbc50ff 25ff0f0000      and     eax,0FFFh
 	*/
-	KiSystemServiceStart = (ULONG_PTR)((unsigned char*)KernelBase + textSection->VirtualAddress + KiSSSOffset - 7); 
+	KiSystemServiceStart = (ULONG_PTR)((unsigned char*)KernelBase + textSection->VirtualAddress + KiSSSOffset - 7);
 	HYPERPLATFORM_LOG_INFO("KiSystemServiceStart %llx", KiSystemServiceStart);
 
 	SystemCallFake.Construct();
@@ -204,21 +190,8 @@ PVOID GetSSDTEntry(IN ULONG index)
 	return NULL;
 }
 
-void InitUserSystemCallHandler(decltype(&SystemCallHandler) UserHandler)
-{
-	UserSystemCallHandler = UserHandler;
-}
-
 void SystemCallHandler(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX)
 {
-	//然后应该调用用户给的处理函数，如果没有提供，则使用默认的
-	if (UserSystemCallHandler)
-	{
-		UserSystemCallHandler(TrapFrame, SSDT_INDEX);
-	}
-}
-
-void SystemCallLog(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX)
-{
-	return;
+	UNREFERENCED_PARAMETER(TrapFrame);
+	UNREFERENCED_PARAMETER(SSDT_INDEX);
 }
