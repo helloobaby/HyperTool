@@ -21,7 +21,7 @@ SAVE macro
 	push rbp
 endm
 
-RESTOR macro
+RESTORE macro
 	pop rbp
 	pop rbx
 	pop rsi
@@ -50,7 +50,7 @@ DetourKiSystemServiceStart proc
 	mov edx,eax
 	call SystemCallHandler
 	add rsp,28h
-	RESTOR
+	RESTORE
 
 	mov [rbx+90h],rsp
 	mov     edi, eax

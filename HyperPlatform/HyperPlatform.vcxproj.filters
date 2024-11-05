@@ -227,6 +227,9 @@
     <ClInclude Include="include\system\win11_22000_194.h">
       <Filter>system_include</Filter>
     </ClInclude>
+    <ClInclude Include="error_bugcheck.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="HyperPlatform.ruleset" />

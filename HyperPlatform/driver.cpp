@@ -31,16 +31,15 @@ extern "C"
 }
 
 
-
-//
-//实现于systemcall.cpp
-//
+// systemcall.cpp
 extern NTSTATUS InitSystemVar();
 extern void DoSystemCallHook();
-
 extern NTSTATUS HookStatus;
 extern fpSystemCall SystemCallFake;
 extern char SystemCallRecoverCode[15];
+//
+
+
  
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -99,14 +98,37 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   auto status = STATUS_UNSUCCESSFUL;
   driver_object->DriverUnload = DriverpDriverUnload;
 
+  //https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/single-binary-opt-in-pool-nx-optin
+// Request NX Non-Paged Pool when available
+  ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
+
+  // Initialize log functions
+  bool need_reinitialization = false;
+  status = LogInitialization(kLogLevel, kLogFilePath);
+  if (status == STATUS_REINITIALIZATION_NEEDED) {
+      need_reinitialization = true;
+  }
+  else if (!NT_SUCCESS(status)) {
+      return status;
+  }
+
+  // Test if the system is supported
+  if (!DriverpIsSuppoetedOS()) {
+      LogTermination();
+      return STATUS_CANCELLED;
+  }
+
+  HYPERPLATFORM_LOG_DEBUG("DriverEntry enter");
+
+  // 初始化系统相关变量
   status = InitSystemVar();
   if (!NT_SUCCESS(status))
   {
+      LogTermination();
       return STATUS_UNSUCCESSFUL;
   }
 
   _CRT_INIT();
-
 
   status = HyperInitDeviceAll(driver_object);
 
@@ -115,57 +137,14 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       return STATUS_UNSUCCESSFUL;
   }
 
-
-#ifdef HOOK_SYSCALL 
+  // 这里相当于给使用者提供一个接口,接管Syscall的
   InitUserSystemCallHandler(SystemCallLog);
 
-  //是否要开启KiSystemCall64的hook
   DoSystemCallHook();
 
-#endif
-
-#ifdef SERVICE_HOOK 
-
-  //hook NtOpenProcess vServcieHook[0]
-  AddServiceHook(UtilGetSystemProcAddress(L"NtOpenProcess"), DetourNtOpenProcess,(PVOID*)&OriNtOpenProcess,"NtOpenProcess");
-
-  //hook NtCreateFile vServcieHook[1]
   AddServiceHook(UtilGetSystemProcAddress(L"NtCreateFile"), DetourNtCreateFile, (PVOID*)&OriNtCreateFile,"NtCreateFile");
 
-  //hook NtWriteVirtualMemory vServcieHook[2]
-  AddServiceHook(
-      PVOID(KernelBase + OffsetNtWriteVirtualMemory), 
-      DetourNtWriteVirtualMemory, 
-      (PVOID*)&OriNtWriteVirtualMemory,"NtWriteVirtualMemory"
-  );
-
-  //hook NtCreateThreadEx vServcieHook[3]
-  AddServiceHook(
-      PVOID(KernelBase + OffsetNtCreateThreadEx),
-      DetourNtCreateThreadEx,
-      (PVOID*)&OriNtCreateThreadEx,"NtCreateThreadEx");
-
-  //hook NtAllocateVirtualMemory vServcieHook[4]
-  AddServiceHook(UtilGetSystemProcAddress(L"NtAllocateVirtualMemory"), DetourNtAllocateVirtualMemory,
-      (PVOID*)&OriNtAllocateVirtualMemory,"NtAllocateVirtualMemory");
-
-  //hook NtCreateThread vServcieHook[5]
-  AddServiceHook(
-      PVOID(KernelBase + OffsetNtCreateThread),
-      DetourNtCreateThread,
-      (PVOID*)&OriNtCreateThread,"NtCreateThread");
-
-  //hook NtDeviceIoControlFile vServcieHook[6]
-  AddServiceHook(PVOID(KernelBase + OffsetNtDeviceIoControlFile),
-      DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile,"NtDeviceIoControlFile");
-#endif
-
-
-
-
-
-
-
+  return STATUS_SUCCESS;
 
 #ifdef HIDE_WINDOW
   AddServiceHook(PVOID(Win32kfullBase + OffsetNtUserFindWindowEx),
@@ -191,29 +170,6 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 #if 0
   return STATUS_SUCCESS;
 #endif
-
-#if 0
-  HYPERPLATFORM_COMMON_DBG_BREAK();
-#endif
-
-  //https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/single-binary-opt-in-pool-nx-optin
-  // Request NX Non-Paged Pool when available
-  ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
-
-  // Initialize log functions
-  bool need_reinitialization = false;
-  status = LogInitialization(kLogLevel, kLogFilePath);
-  if (status == STATUS_REINITIALIZATION_NEEDED) {
-    need_reinitialization = true;
-  } else if (!NT_SUCCESS(status)) {
-    return status;
-  }
-
-  // Test if the system is supported
-  if (!DriverpIsSuppoetedOS()) {
-    LogTermination();
-    return STATUS_CANCELLED;
-  }
 
   // Initialize global variables
   // 调用全局类的构造函数
@@ -285,12 +241,6 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
   HYPERPLATFORM_LOG_INFO("The VMM has been installed.");
 
-  
-
-
-
-
-
   return status;
 }
 
@@ -299,30 +249,26 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
     PDRIVER_OBJECT driver_object) {
   UNREFERENCED_PARAMETER(driver_object);
   PAGED_CODE()
-#if 0
-  HYPERPLATFORM_COMMON_DBG_BREAK();
-#endif
+
+  HYPERPLATFORM_LOG_INFO("Driver unload");
+
   VmTermination();
   HotplugCallbackTermination();
   PowerCallbackTermination();
   UtilTermination();
   PerfTermination();
   //GlobalObjectTermination();
-  LogTermination();
-#ifdef HOOK_SYSCALL
+
   auto irql = WPOFFx64();
+  HYPERPLATFORM_LOG_INFO("Start Recovering syscalls");
   memcpy((PVOID)KiSystemServiceStart, SystemCallRecoverCode, sizeof(SystemCallRecoverCode));
   WPONx64(irql);
   if (SystemCallFake.fp.PageContent)
       ExFreePool(SystemCallFake.fp.PageContent);
-#endif
 
-#ifdef SERVICE_HOOK
-  RemoveServiceHook();
-#endif
-
-  HyperDestroyDeviceAll(driver_object);
-
+  RemoveServiceHook(); // 卸载hook
+  HyperDestroyDeviceAll(driver_object); // 卸载device
+  LogTermination(); // 日志最后卸载
 }
 
 // Test if the system is one of supported OS versions

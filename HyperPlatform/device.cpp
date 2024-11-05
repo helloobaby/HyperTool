@@ -1,15 +1,14 @@
-#include"device.h"
-#include"window.h"
-#include"settings.h"
+#include "device.h"
+#include "window.h"
+#include "settings.h"
+#include "log.h"
 
 static UNICODE_STRING uDevice = RTL_CONSTANT_STRING(DEVICE_NAME);
 static UNICODE_STRING uSymbol = RTL_CONSTANT_STRING(DOS_DEVICE_NAME);
 
 NTSTATUS HyperInitDeviceAll(PDRIVER_OBJECT DriverObject)
 {
-#if 0
-	Log("HyperInitDeviceAll\n");
-#endif
+	HYPERPLATFORM_LOG_INFO("HyperInitDevice enter");
 	PDEVICE_OBJECT deviceObject = NULL;
 	NTSTATUS Status;
 
@@ -27,7 +26,7 @@ NTSTATUS HyperInitDeviceAll(PDRIVER_OBJECT DriverObject)
 		&deviceObject);
 	if (!NT_SUCCESS(Status))
 	{
-		Log("HyperTool IoCreateDeivce failed with status 0x%x\n", Status);
+		HYPERPLATFORM_LOG_INFO("HyperTool IoCreateDeivce failed with status 0x%x\n", Status);
 		return Status;
 	}
 
@@ -38,19 +37,20 @@ NTSTATUS HyperInitDeviceAll(PDRIVER_OBJECT DriverObject)
 
 	if (!NT_SUCCESS(Status))
 	{
-		Log("HyperTool IoCreateSymbolicLink failed with status 0x%x\n", Status);
+		HYPERPLATFORM_LOG_INFO("HyperTool IoCreateSymbolicLink failed with status 0x%x\n", Status);
 		IoDeleteDevice(deviceObject);
 		return Status;
 	}
 
 	return Status;
-
 }
 
 NTSTATUS HyperDestroyDeviceAll(PDRIVER_OBJECT DriverObject)
 {
+	HYPERPLATFORM_LOG_INFO("HyperDestroyDeviceAll enter");
 	NTSTATUS Status;
-	IoDeleteDevice(DriverObject->DeviceObject);
+	if (DriverObject->DeviceObject && MmIsAddressValid(DriverObject->DeviceObject))
+		IoDeleteDevice(DriverObject->DeviceObject);
 	Status = IoDeleteSymbolicLink(&uSymbol);
 	return Status;
 }

@@ -1,14 +1,23 @@
-#include"include/exclusivity.h"
-#include"ia32_type.h"
-#include"systemcall.h"
-#include"include/write_protect.h"
+#include "include/exclusivity.h"
+#include "ia32_type.h"
+#include "systemcall.h"
+#include "include/write_protect.h"
 #include "settings.h"
 
 extern "C"
 {
 #include"kernel-hook/khook/khook/hk.h"
-extern "C" void DetourKiSystemServiceStart();
-NTSYSAPI const char* PsGetProcessImageFileName(PEPROCESS Process);
+	// 我们的Syscall Handler
+	extern "C" void DetourKiSystemServiceStart();
+
+	NTSYSAPI const char* PsGetProcessImageFileName(PEPROCESS Process);
+
+	NTKERNELAPI
+		PIMAGE_NT_HEADERS
+		NTAPI
+		RtlImageNtHeader(
+			_In_ PVOID Base
+		);
 }
 
 
@@ -53,86 +62,111 @@ PKLDR_DATA_TABLE_ENTRY GetSystemModule(IN PUNICODE_STRING pName, IN PVOID pAddre
 
 NTSTATUS InitSystemVar()
 {
-	/*
-	* 这个函数用来在vmlaunch之前初始化一些全局变量
-	* 
-	* 1.获得内核基址
-	* 
-	* 2.获得KiSystemServiceStart的地址
-	* 
-	* 3.获得SSDT Table的地址
-	* 
-	* 4.初始化一个伪造的guest页面
-	*/
-
-
+	// 初始化内核基址 (KernelBase.asm)
 	KernelBase = GetKernelBase();
+	if (!KernelBase) {
+		HYPERPLATFORM_LOG_ERROR("Cant get kernel base");
+		return STATUS_UNSUCCESSFUL;
+	}
+	HYPERPLATFORM_LOG_INFO("[KernelBase]%p", KernelBase);
 
-	PsLoadedModuleList = (decltype(PsLoadedModuleList))(KernelBase + OffsetPsLoadedModuleList);
+	UNICODE_STRING UnicodeBuf;
+	RtlInitUnicodeString(&UnicodeBuf, L"PsLoadedModuleList");
+	PsLoadedModuleList = (PLIST_ENTRY)MmGetSystemRoutineAddress(&UnicodeBuf);
 
-	auto tmpa = GetSystemModule(&Win32kfullBaseString,0);
+	auto tmpa = GetSystemModule(&Win32kfullBaseString, 0);
 	if (tmpa)
 	{
 		Win32kfullBase = (ULONG_PTR)tmpa->DllBase;
 		Win32kfullSize = (ULONG_PTR)tmpa->SizeOfImage;
-#ifdef DBG
-		Log("[WIN32kfullBase]%llx\n", Win32kfullBase);
-#endif // DBG
-
+		HYPERPLATFORM_LOG_INFO("[WIN32kfullBase]%llx", Win32kfullBase);
 	}
 	else
 	{
-#ifdef DBG
-		DbgBreakPoint();
-#else
-		KeBugCheck(0xbbbbbbbb);
-#endif
+		HYPERPLATFORM_LOG_ERROR("Cant get Win32kfull Base");
+		return STATUS_UNSUCCESSFUL;
 	}
 
 	tmpa = GetSystemModule(&Win32kbaseBaseString, 0);
 	if (tmpa)
 	{
 		Win32kbaseBase = (ULONG_PTR)tmpa->DllBase;
-#ifdef DBG
-		Log("[WIN32kbaseBase]%llx\n", Win32kbaseBase);
-#endif // DBG
+		HYPERPLATFORM_LOG_INFO("[WIN32kbaseBase]%llx", Win32kbaseBase);
 	}
 	else
 	{
-#ifdef DBG
-		DbgBreakPoint();
-#else
-		KeBugCheck(0xcccccccc);
-#endif
+		HYPERPLATFORM_LOG_ERROR("Cant get Win32kbase Base");
+		return STATUS_UNSUCCESSFUL;
 	}
 
+	PtrDetourKiSystemServiceStart = (ULONG_PTR)&DetourKiSystemServiceStart;
 
-	if (!KernelBase)
-		KeBugCheck(0xaaaaaaaa);
-	//LdrpKrnGetDataTableEntry = (LdrpKrnGetDataTableEntryType)(KernelBase + OffsetLdrpKrnGetDataTableEntry);
+	// Find .text section
+	PIMAGE_NT_HEADERS ntHeaders = RtlImageNtHeader((PVOID)KernelBase);
+	PIMAGE_SECTION_HEADER textSection = nullptr;
+	PIMAGE_SECTION_HEADER section = IMAGE_FIRST_SECTION(ntHeaders);
+	for (ULONG i = 0; i < ntHeaders->FileHeader.NumberOfSections; ++i)
+	{
+		char sectionName[IMAGE_SIZEOF_SHORT_NAME + 1];
+		RtlCopyMemory(sectionName, section->Name, IMAGE_SIZEOF_SHORT_NAME);
+		sectionName[IMAGE_SIZEOF_SHORT_NAME] = '\0';
+		if (strncmp(sectionName, ".text", sizeof(".text") - sizeof(char)) == 0)
+		{
+			textSection = section;
+			break;
+		}
+		section++;
+	}
+	if (textSection == nullptr)
+		return STATUS_UNSUCCESSFUL;
 
-	PtrKiSystemServiceStart = (ULONG_PTR)&DetourKiSystemServiceStart;
-
-	//KiSystemServiceCopyStart = OffsetKiSystemServiceCopyStart + KernelBase;
-	KiSystemServiceStart = OffsetKiSystemServiceStart + KernelBase;
-
-	aSYSTEM_SERVICE_DESCRIPTOR_TABLE = 
-	(SYSTEM_SERVICE_DESCRIPTOR_TABLE*)(OffsetKeServiceDescriptorTable + KernelBase);
-
-	PspCidTable = *(ULONG_PTR*)(KernelBase + OffsetPspCidTable);
-
-#ifdef HOOK_SYSCALL
+	// Find KiSystemServiceStart in .text
+	const unsigned char KiSystemServiceStartPattern[] = { 0x8B, 0xF8, 0xC1, 0xEF, 0x07, 0x83, 0xE7, 0x20, 0x25, 0xFF, 0x0F, 0x00, 0x00 };
+	const ULONG signatureSize = sizeof(KiSystemServiceStartPattern);
+	bool found = false;
+	ULONG KiSSSOffset;
+	for (KiSSSOffset = 0; KiSSSOffset < textSection->Misc.VirtualSize - signatureSize; KiSSSOffset++)
+	{
+		if (RtlCompareMemory(((unsigned char*)KernelBase + textSection->VirtualAddress + KiSSSOffset), KiSystemServiceStartPattern, signatureSize) == signatureSize)
+		{
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		HYPERPLATFORM_LOG_ERROR("Cant find KiSystemServiceStart");
+		return STATUS_SUCCESS;
+	}
+	/*
+nt!KiSystemServiceStart:
+fffff805`5cbc50f0 4889a390000000  mov     qword ptr [rbx+90h],rsp
+fffff805`5cbc50f7 8bf8            mov     edi,eax                  <--- KiSystemServiceStartPattern   
+fffff805`5cbc50f9 c1ef07          shr     edi,7
+fffff805`5cbc50fc 83e720          and     edi,20h
+fffff805`5cbc50ff 25ff0f0000      and     eax,0FFFh
+	*/
+	KiSystemServiceStart = (ULONG_PTR)((unsigned char*)KernelBase + textSection->VirtualAddress + KiSSSOffset - 7); 
+	HYPERPLATFORM_LOG_INFO("KiSystemServiceStart %llx", KiSystemServiceStart);
 
 	SystemCallFake.Construct();
-
-#endif // HOOK_SYSCALL
-
 
 	return STATUS_SUCCESS;
 }
 
 void DoSystemCallHook()
 {
+	/*
+nt!KiSystemServiceStart:
+fffff805`5cbc50f0 4157            push    r15
+fffff805`5cbc50f2 49bfe0133d5c05f8ffff mov r15,offset HyperTool!DetourKiSystemServiceStart (fffff805`5c3d13e0)
+fffff805`5cbc50fc 41ffe7          jmp     r15
+fffff805`5cbc50ff 25ff0f0000      and     eax,0FFFh
+nt!KiSystemServiceRepeat:
+fffff805`5cbc5104 4c8d1575a73100  lea     r10,[nt!KeServiceDescriptorTable (fffff805`5cedf880)]         <------ OriKiSystemServiceStart
+fffff805`5cbc510b 4c8d1d6e383000  lea     r11,[nt!KeServiceDescriptorTableShadow (fffff805`5cec8980)]
+fffff805`5cbc5112 f7437880000000  test    dword ptr [rbx+78h],80h
+fffff805`5cbc5119 7413            je      nt!KiSystemServiceRepeat+0x2a (fffff805`5cbc512e)
+	*/
 	OriKiSystemServiceStart = (PVOID)((ULONG_PTR)KiSystemServiceStart + 0x14);
 	auto exclusivity = ExclGainExclusivity();
 	//
@@ -144,9 +178,9 @@ void DoSystemCallHook()
 	//
 	char hook[] = { 0x41,0x57,0x49,0xBF,0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x11,0x41,0xFF,0xE7 };
 	memcpy(SystemCallRecoverCode, (PVOID)KiSystemServiceStart, sizeof(SystemCallRecoverCode));
-	memcpy(hook + 4, &PtrKiSystemServiceStart, sizeof(PtrKiSystemServiceStart));
+	memcpy(hook + 4, &PtrDetourKiSystemServiceStart, sizeof(PtrDetourKiSystemServiceStart));
 	auto irql = WPOFFx64();
-	memcpy((PVOID)KiSystemServiceStart, hook, sizeof(hook));
+	memcpy((PVOID)KiSystemServiceStart, hook, sizeof(hook));   // 完成hook
 	WPONx64(irql);
 
 	ExclReleaseExclusivity(exclusivity);
@@ -155,17 +189,17 @@ void DoSystemCallHook()
 //只用于SSDT，不适用于ShadowSSDT
 PVOID GetSSDTEntry(IN ULONG index)
 {
-	PSYSTEM_SERVICE_DESCRIPTOR_TABLE pSSDT = aSYSTEM_SERVICE_DESCRIPTOR_TABLE;
-	PVOID pBase = (PVOID)KernelBase;
+	//PSYSTEM_SERVICE_DESCRIPTOR_TABLE pSSDT = aSYSTEM_SERVICE_DESCRIPTOR_TABLE;
+	//PVOID pBase = (PVOID)KernelBase;
 
-	if (pSSDT && pBase)
-	{
-		// Index range check 在shadowssdt里的话返回0
-		if (index > pSSDT->NumberOfServices)
-			return NULL;
+	//if (pSSDT && pBase)
+	//{
+	//	// Index range check 在shadowssdt里的话返回0
+	//	if (index > pSSDT->NumberOfServices)
+	//		return NULL;
 
-		return (PUCHAR)pSSDT->ServiceTableBase + (((PLONG)pSSDT->ServiceTableBase)[index] >> 4);
-	}
+	//	return (PUCHAR)pSSDT->ServiceTableBase + (((PLONG)pSSDT->ServiceTableBase)[index] >> 4);
+	//}
 
 	return NULL;
 }
@@ -175,21 +209,9 @@ void InitUserSystemCallHandler(decltype(&SystemCallHandler) UserHandler)
 	UserSystemCallHandler = UserHandler;
 }
 
-void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
+void SystemCallHandler(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX)
 {
-
-#ifdef DBG
-	//用来记录拦截了多少次系统调用，方便debug，只有第一次的时候会输出
-	static LONG64 SysCallCount = 0;
-	if (!SysCallCount) {
-		Log("[SysCallCount]at %p\n", &SysCallCount);
-		Log("[SYSCALL]%s\nIndex %x\nTarget %llx\n", GetSyscallProcess(), SSDT_INDEX, GetSSDTEntry(SSDT_INDEX));
-	}
-	SysCallCount++;
-#endif
-
 	//然后应该调用用户给的处理函数，如果没有提供，则使用默认的
-
 	if (UserSystemCallHandler)
 	{
 		UserSystemCallHandler(TrapFrame, SSDT_INDEX);
@@ -198,21 +220,5 @@ void SystemCallHandler(KTRAP_FRAME * TrapFrame,ULONG SSDT_INDEX)
 
 void SystemCallLog(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX)
 {
-	const char* syscall_name = GetSyscallProcess();
-#if 0
-	Log("%s\n", syscall_name);
-#endif
-	//
-	//不需要输出shadow ssdt的
-	//
-
-	//
-	//ConsoleApplication3.vmp.exe
-	//因为EPROCESS.ImageFileName[16]，所以需要截断至16个字节(带末尾空字符)
-	//这个测试exe在项目目录下
-	//
-	if (!strcmp(syscall_name, "ConsoleApplica")) {
-		if (SSDT_INDEX < 0x1000)
-			Log("[%s]Syscall rip %p SSDT Index %p\n", syscall_name,TrapFrame->Rip - 2, SSDT_INDEX);
-	}
+	return;
 }

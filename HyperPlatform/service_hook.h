@@ -21,25 +21,6 @@ typedef HANDLE  HWND;
 #define PROCESS_QUERY_LIMITED_INFORMATION  (0x1000)  
 #define PROCESS_SET_LIMITED_INFORMATION    (0x2000)  
 
-typedef struct _MM_SESSION_SPACE                      // 50 elements, 0x5000 bytes (sizeof) 
-{
-	/*0x000*/      LONG32       ReferenceCount;
-	union                                             // 2 elements, 0x4 bytes (sizeof)     
-	{
-		/*0x004*/          ULONG32      LongFlags;  
-	}u;
-	/*0x008*/      ULONG32      SessionId;
-	/*0x00C*/      LONG32       ProcessReferenceToSession;
-	/*0x010*/      struct _LIST_ENTRY ProcessList;                   // 2 elements, 0x10 bytes (sizeof)    
-	/*0x020*/      UINT64       SessionPageDirectoryIndex;
-	/*0x028*/      UINT64       NonPagablePages;
-	/*0x030*/      UINT64       CommittedPages;
-	/*0x038*/      VOID* PagedPoolStart;
-	/*0x040*/      VOID* PagedPoolEnd;
-	/*0x048*/      VOID* SessionObject;
-	/*0x050*/      VOID* SessionObjectHandle;
-}MM_SESSION_SPACE, * PMM_SESSION_SPACE;
-
 struct ServiceHook : public ICFakePage
 {
 	~ServiceHook() {};
@@ -48,10 +29,10 @@ struct ServiceHook : public ICFakePage
 	PVOID DetourFunc;
 	PVOID *TrampolineFunc;
 	ULONG HookCodeLen;
-	bool isEverythignSuc;
-	bool isWin32Hook = false;
+	bool isWin32Hook = false;   // 涉及到Win32kfull模块内函数的hook置为true
 	LONG refCount = 0;
 	std::string funcName;
+	bool isEverythignSuc;       // Construct(构造)函数内部逻辑完全成功会置这个标志位
 };
 
 
@@ -96,7 +77,6 @@ using NtCreateThreadExType = NTSTATUS(*)(
 ULONG_PTR MiGetSystemRegionType(ULONG_PTR vaddress);
 
 PEPROCESS MmGetSessionById(int sessionId);
-NTSTATUS MiAttachSession(MM_SESSION_SPACE* SessionSpace);
 NTSTATUS MiDetachProcessFromSession(int SessionID);
 
 
@@ -118,25 +98,18 @@ using MmAccessFaultType = decltype(&MmAccessFault);
 using NtUserFindWindowExType = decltype(&NtUserFindWindowEx);
 using MiGetSystemRegionTypeType = decltype(&MiGetSystemRegionType);
 using MmGetSessionByIdType = decltype(&MmGetSessionById);
-using MiAttachSessionType = decltype(&MiAttachSession);
 using MiDetachProcessFromSessionType = decltype(&MiDetachProcessFromSession);
 using NtDeviceIoControlFileType = decltype(&NtDeviceIoControlFile);
 
 //
-//必须保证你这个要hook的函数在给rax赋值之前不使用rax，因为我们使用rax作为跳板
-//一般来说c/c++函数都不会使用rax，汇编函数就不一定了。比如系统调用时候rax为ssdt index
+// 必须保证你这个要hook的函数在给rax赋值之前不使用rax，因为我们使用rax作为跳板
+// 一般来说c/c++函数都不会使用rax，汇编函数就不一定了。比如系统调用时候rax为ssdt index
 //
 void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline,const char* funcName);
 
 void RemoveServiceHook();
 
 
-//Example
-
-
-// 
-//hook NtOpenProcess
-// 
 inline NtOpenProcessType OriNtOpenProcess;
 inline NtCreateFileType OriNtCreateFile;
 inline NtWriteVirtualMemoryType OriNtWriteVirtualMemory;
@@ -147,8 +120,6 @@ inline NtUserFindWindowExType OriNtUserFindWindowEx;
 inline MmAccessFaultType pfMmAccessFault;
 inline MiGetSystemRegionTypeType pfMiGetSystemRegionType;
 inline MmGetSessionByIdType pfMmGetSessionById;
-inline MM_SESSION_SPACE* SystemSesstionSpace;
-inline MiAttachSessionType pfMiAttachSession;
 inline MiDetachProcessFromSessionType pfMiDetachProcessFromSession;
 inline NtDeviceIoControlFileType OriNtDeviceIoControlFile;
 

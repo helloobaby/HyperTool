@@ -3,9 +3,11 @@
 
 struct FakePage
 {
-    PVOID GuestVA;//要fake的guest线性地址
+    // //要fake的guest线性地址
+    PVOID GuestVA;
     PHYSICAL_ADDRESS GuestPA;
-    PVOID PageContent;//包含这个页面的信息，在vmlaunch之前填充好,也就是guest能看到的页面内容
+    // 包含这个页面的信息，在vmlaunch之前填充好,也就是guest能看到的页面内容
+    PVOID PageContent;
     PHYSICAL_ADDRESS PageContentPA;
 };
 

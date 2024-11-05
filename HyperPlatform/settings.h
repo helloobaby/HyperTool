@@ -5,10 +5,10 @@
 */
 
 
-//
-//开启sys call hook
-//
-//#define HOOK_SYSCALL
+
+// 开启sys call hook
+
+#define HOOK_SYSCALL
 
 //
 //开启内核函数hook
