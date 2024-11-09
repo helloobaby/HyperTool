@@ -193,54 +193,59 @@ void RemoveServiceHook()
 	}
 }
 
-NTSTATUS DetourNtCreateFile(
-	PHANDLE            FileHandle,
-	ACCESS_MASK        DesiredAccess,
-	POBJECT_ATTRIBUTES ObjectAttributes,
-	PIO_STATUS_BLOCK   IoStatusBlock,
-	PLARGE_INTEGER     AllocationSize,
-	ULONG              FileAttributes,
-	ULONG              ShareAccess,
-	ULONG              CreateDisposition,
-	ULONG              CreateOptions,
-	PVOID              EaBuffer,
-	ULONG              EaLength
-)
-{
+NTSTATUS DetourNtDeviceIoControlFile(
+	_In_ HANDLE FileHandle,
+	_In_opt_ HANDLE Event,
+	_In_opt_ PIO_APC_ROUTINE ApcRoutine,
+	_In_opt_ PVOID ApcContext,
+	_Out_ PIO_STATUS_BLOCK IoStatusBlock,
+	_In_ ULONG IoControlCode,
+	_In_reads_bytes_opt_(InputBufferLength) PVOID InputBuffer,
+	_In_ ULONG InputBufferLength,
+	_Out_writes_bytes_opt_(OutputBufferLength) PVOID OutputBuffer,
+	_In_ ULONG OutputBufferLength
+) {
 
-	NTSTATUS Status;
-	InterlockedAdd(&vServcieHook[NtCreateFileHookIndex].refCount, 1);
+	NTSTATUS Status;  // 给操作系统的原本的操作码
+	InterlockedAdd(&vServcieHook[NtDeviceIoControlFileHookIndex].refCount, 1);
 
+	Status = OriNtDeviceIoControlFile(
+		FileHandle,
+		Event,
+		ApcRoutine,
+		ApcContext,
+		IoStatusBlock,
+		IoControlCode,
+		InputBuffer,
+		InputBufferLength,
+		OutputBuffer,
+		OutputBufferLength);
+
+	PFILE_OBJECT LocalFileObject;
 	PUNICODE_STRING ProcessName = UtilGetProcessNameByEPROCESS(IoGetCurrentProcess());
+	NTSTATUS MyStatus = ObReferenceObjectByHandle(FileHandle, GENERIC_READ, *IoFileObjectType, KernelMode, (PVOID*)&LocalFileObject, NULL);
 
-	if (ProcessName) {
+	if (ProcessName && NT_SUCCESS(MyStatus)) {
 		// 进程列表为空\开启hook日志
 		if (TraceProcessPathList.empty() && GlobalConfig.hooks_log && ProcessName) {
-			HYPERPLATFORM_LOG_INFO("%wZ -> %wZ", ProcessName, ObjectAttributes->ObjectName);
+
+			HYPERPLATFORM_LOG_INFO("%wZ -> %wZ , %x , %wZ", ProcessName, LocalFileObject->FileName, IoControlCode, LocalFileObject->DeviceObject->DriverObject->DriverName);
+		
 		}
 		else {
 			for (auto process_path : TraceProcessPathList) {
-				if (_strstri_a((char*)PsGetProcessImageFileName(PsGetCurrentProcess()),process_path.c_str())) {
+				if (_strstri_a((char*)PsGetProcessImageFileName(PsGetCurrentProcess()), process_path.c_str())) {
 					if (GlobalConfig.hooks_log) {
-						HYPERPLATFORM_LOG_INFO("%wZ -> %wZ", ProcessName, ObjectAttributes->ObjectName);
+
+						HYPERPLATFORM_LOG_INFO("%wZ -> %wZ , %x , %wZ", ProcessName, LocalFileObject->FileName, IoControlCode,LocalFileObject->DeviceObject->DriverObject->DriverName);
+				
 					}
 				}
 			}
 		}
 	}
 	if (ProcessName) { RtlFreeUnicodeString(ProcessName); ExFreePool(ProcessName); }
-	Status = OriNtCreateFile(
-		FileHandle,
-		DesiredAccess,
-		ObjectAttributes,
-		IoStatusBlock,
-		AllocationSize,
-		FileAttributes,
-		ShareAccess,
-		CreateDisposition,
-		CreateOptions,
-		EaBuffer,
-		EaLength);
-	InterlockedAdd(&vServcieHook[NtCreateFileHookIndex].refCount, -1);
+
+	InterlockedAdd(&vServcieHook[NtDeviceIoControlFileHookIndex].refCount, -1);
 	return Status;
 }
