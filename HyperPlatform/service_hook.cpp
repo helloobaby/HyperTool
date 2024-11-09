@@ -8,15 +8,20 @@
 #include "common.h"
 #include "log.h"
 #include "util.h"
+#include "config.h"
 
 extern "C"
 {
 #include"kernel-hook/khook/khook/hk.h"
+#include "minirtl/minirtl.h"
 extern ULONG_PTR KernelBase;
 extern ULONG_PTR PspCidTable;
 extern ULONG_PTR Win32kfullBase;
 extern ULONG Win32kfullSize;
 }
+
+extern tagGlobalConfig GlobalConfig;
+extern std::vector<std::string> TraceProcessPathList;
 
 
 using std::vector; 
@@ -154,6 +159,7 @@ void ServiceHook::Destruct()
 //
 void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline,const char* funcName)
 {
+	HYPERPLATFORM_LOG_INFO("AddServiceHook %s ", funcName);
 	if (!HookFuncStart)
 	{
 		HYPERPLATFORM_LOG_WARN("HookFuncStart is NULL");
@@ -205,13 +211,24 @@ NTSTATUS DetourNtCreateFile(
 	NTSTATUS Status;
 	InterlockedAdd(&vServcieHook[NtCreateFileHookIndex].refCount, 1);
 
-	UNICODE_STRING TestFile = RTL_CONSTANT_STRING(L"\\??\\C:\\HyperTest");
-	if (RtlEqualUnicodeString(&TestFile, ObjectAttributes->ObjectName, 1)) {
-		InterlockedAdd(&vServcieHook[NtCreateFileHookIndex].refCount, -1);
-		return STATUS_ACCESS_DENIED;
+	PUNICODE_STRING ProcessName = UtilGetProcessNameByEPROCESS(IoGetCurrentProcess());
+
+	if (ProcessName) {
+		// 进程列表为空\开启hook日志
+		if (TraceProcessPathList.empty() && GlobalConfig.hooks_log && ProcessName) {
+			HYPERPLATFORM_LOG_INFO("%wZ -> %wZ", ProcessName, ObjectAttributes->ObjectName);
+		}
+		else {
+			for (auto process_path : TraceProcessPathList) {
+				if (_strstri_a((char*)PsGetProcessImageFileName(PsGetCurrentProcess()),process_path.c_str())) {
+					if (GlobalConfig.hooks_log) {
+						HYPERPLATFORM_LOG_INFO("%wZ -> %wZ", ProcessName, ObjectAttributes->ObjectName);
+					}
+				}
+			}
+		}
 	}
-
-
+	if (ProcessName) { RtlFreeUnicodeString(ProcessName); ExFreePool(ProcessName); }
 	Status = OriNtCreateFile(
 		FileHandle,
 		DesiredAccess,

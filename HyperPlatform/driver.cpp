@@ -19,9 +19,12 @@
 #include "vm.h"
 #include "performance.h"
 #include "systemcall.h"
-#include"include/global.hpp"
-#include"service_hook.h"
-#include"device.h"
+#include "include/global.hpp"
+#include "service_hook.h"
+#include "device.h"
+#include "config.h"
+#include "minirtl/minirtl.h"
+#include "minirtl/_filename.h"
 
 extern "C"
 {
@@ -37,6 +40,9 @@ extern fpSystemCall SystemCallFake;
 extern char SystemCallRecoverCode[15];
 //
 
+extern bool is_cet_enable;
+
+extern LARGE_INTEGER MmHalfSecond;
 
  
 extern "C" {
@@ -118,6 +124,12 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
   HYPERPLATFORM_LOG_DEBUG("DriverEntry enter");
 
+  ULONG64 cr4 = __readcr4();
+  if (cr4 & 0x800000) {
+      is_cet_enable = true;
+      HYPERPLATFORM_LOG_INFO_SAFE("CR4.CET is enable");
+  }
+
   // 初始化系统相关变量
   status = InitSystemVar();
   if (!NT_SUCCESS(status))
@@ -140,6 +152,9 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
   // #define NtCreateFileHookIndex 0
   AddServiceHook(UtilGetSystemProcAddress(L"NtCreateFile"), DetourNtCreateFile, (PVOID*)&OriNtCreateFile,"NtCreateFile");
+
+  // 创建配置更新线程
+  PsCreateSystemThread(&hConfigThread, 0, NULL, NULL, NULL, &ConfigUpdateThread, NULL);
 
   // Initialize perf functions
   status = PerfInitialization();
@@ -216,6 +231,10 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
 
   HYPERPLATFORM_LOG_INFO("Driver unload");
 
+  // 卸载日志更新线程
+  ConfigExitVar = true;
+  KeDelayExecutionThread(KernelMode, false, &MmHalfSecond);
+
   VmTermination();
   HotplugCallbackTermination();
   PowerCallbackTermination();
@@ -233,6 +252,7 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
   RemoveServiceHook(); // 卸载hook
   HyperDestroyDeviceAll(driver_object); // 卸载device
   LogTermination(); // 日志最后卸载
+
 }
 
 // Test if the system is one of supported OS versions

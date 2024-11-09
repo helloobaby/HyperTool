@@ -1,0 +1,15 @@
+{
+    "path":[
+        "kmd"
+    ]
+    ,
+    "hooks":
+    {
+        "log":"true"
+    },
+    "syscall":
+    {
+
+    },
+    "timestamp":1111
+}

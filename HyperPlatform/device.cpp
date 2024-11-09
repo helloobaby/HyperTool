@@ -40,6 +40,7 @@ NTSTATUS HyperInitDeviceAll(PDRIVER_OBJECT DriverObject)
 		return Status;
 	}
 
+	HYPERPLATFORM_LOG_INFO("HyperInitDevice suc");
 	return Status;
 }
 
@@ -55,9 +56,6 @@ NTSTATUS HyperDestroyDeviceAll(PDRIVER_OBJECT DriverObject)
 
 NTSTATUS HyperDispatchControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 {
-#if DBG
-	Log("HyperDispatch : Entry \n");
-#endif // DBG
 	NTSTATUS status = STATUS_SUCCESS;
 	PIO_STACK_LOCATION irpStack;
 	PVOID ioBuffer = NULL;
@@ -78,13 +76,9 @@ NTSTATUS HyperDispatchControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 	switch (ioControlCode)
 	{
 		
-		case IOCTL_HYPER_TOOL_TEST://only for test
-			Log("HyperDispatchControl Test Entry\n");
+		case IOCTL_HYPER_TOOL_TEST: // Test
 			break;
 		case IOCTL_HYPER_HIDE_WINDOW:
-#ifdef HIDE_WINDOW
-			AttackWindowTable();
-#endif // HIDE_WINDOW
 			break;
 		
 	}

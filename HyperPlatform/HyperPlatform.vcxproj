@@ -81,6 +81,7 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="config.cpp" />
     <ClCompile Include="device.cpp" />
     <ClCompile Include="driver.cpp" />
     <ClCompile Include="ept.cpp" />
@@ -91,10 +92,39 @@
     <ClCompile Include="include\handle.cpp" />
     <ClCompile Include="include\initsect.cpp" />
     <ClCompile Include="include\string.cpp" />
+    <ClCompile Include="json\cJSON.c" />
+    <ClCompile Include="json\kcrt.c" />
     <ClCompile Include="kernel-hook\khook\hde\hde32.cpp" />
     <ClCompile Include="kernel-hook\khook\hde\hde64.cpp" />
     <ClCompile Include="kernel-hook\khook\khook\hk.c" />
     <ClCompile Include="log.cpp" />
+    <ClCompile Include="minirtl\cmdline.c" />
+    <ClCompile Include="minirtl\hextou64.c" />
+    <ClCompile Include="minirtl\hextoul.c" />
+    <ClCompile Include="minirtl\i64tostr.c" />
+    <ClCompile Include="minirtl\itostr.c" />
+    <ClCompile Include="minirtl\strtoi.c" />
+    <ClCompile Include="minirtl\strtoi64.c" />
+    <ClCompile Include="minirtl\strtou64.c" />
+    <ClCompile Include="minirtl\strtoul.c" />
+    <ClCompile Include="minirtl\u64tohex.c" />
+    <ClCompile Include="minirtl\u64tostr.c" />
+    <ClCompile Include="minirtl\ultohex.c" />
+    <ClCompile Include="minirtl\ultostr.c" />
+    <ClCompile Include="minirtl\_filename.c" />
+    <ClCompile Include="minirtl\_strcat.c" />
+    <ClCompile Include="minirtl\_strchr.c" />
+    <ClCompile Include="minirtl\_strcmp.c" />
+    <ClCompile Include="minirtl\_strcmpi.c" />
+    <ClCompile Include="minirtl\_strcpy.c" />
+    <ClCompile Include="minirtl\_strcpyn.c" />
+    <ClCompile Include="minirtl\_strend.c" />
+    <ClCompile Include="minirtl\_strlen.c" />
+    <ClCompile Include="minirtl\_strncmp.c" />
+    <ClCompile Include="minirtl\_strncmpi.c" />
+    <ClCompile Include="minirtl\_strncpy.c" />
+    <ClCompile Include="minirtl\_strstr.c" />
+    <ClCompile Include="minirtl\_strstri.c" />
     <ClCompile Include="performance.cpp" />
     <ClCompile Include="power_callback.cpp" />
     <ClCompile Include="service_hook.cpp" />
@@ -106,6 +136,7 @@
   <ItemGroup>
     <ClInclude Include="asm.h" />
     <ClInclude Include="common.h" />
+    <ClInclude Include="config.h" />
     <ClInclude Include="device.h" />
     <ClInclude Include="driver.h" />
     <ClInclude Include="ept.h" />
@@ -122,6 +153,8 @@
     <ClInclude Include="include\type_traits.hpp" />
     <ClInclude Include="include\vector.hpp" />
     <ClInclude Include="include\write_protect.h" />
+    <ClInclude Include="json\cJSON.h" />
+    <ClInclude Include="json\kcrt.h" />
     <ClInclude Include="kernel-hook\khook\hde\hde.h" />
     <ClInclude Include="kernel-hook\khook\hde\hde32.h" />
     <ClInclude Include="kernel-hook\khook\hde\hde64.h" />
@@ -131,6 +164,10 @@
     <ClInclude Include="kernel-hook\khook\khook\hk.h" />
     <ClInclude Include="KernelBase.h" />
     <ClInclude Include="log.h" />
+    <ClInclude Include="minirtl\cmdline.h" />
+    <ClInclude Include="minirtl\minirtl.h" />
+    <ClInclude Include="minirtl\rtltypes.h" />
+    <ClInclude Include="minirtl\_filename.h" />
     <ClInclude Include="performance.h" />
     <ClInclude Include="perf_counter.h" />
     <ClInclude Include="power_callback.h" />

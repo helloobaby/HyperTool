@@ -17,8 +17,6 @@ Copyright (c) 2021-x	 https://github.com/helloobaby/KernelModeSTL
 
 #pragma comment(linker, "/MERGE:.rtc=.rdata")
 
-ULONG Log(const char* format, ...);
-
 void* operator new(size_t size);
 void* operator new[](size_t size);
 void* operator new(size_t, void* _Where);

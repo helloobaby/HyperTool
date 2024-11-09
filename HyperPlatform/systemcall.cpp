@@ -153,7 +153,8 @@ fffff805`5cbc510b 4c8d1d6e383000  lea     r11,[nt!KeServiceDescriptorTableShadow
 fffff805`5cbc5112 f7437880000000  test    dword ptr [rbx+78h],80h
 fffff805`5cbc5119 7413            je      nt!KiSystemServiceRepeat+0x2a (fffff805`5cbc512e)
 	*/
-	OriKiSystemServiceStart = (PVOID)((ULONG_PTR)KiSystemServiceStart + 0x14);
+	HYPERPLATFORM_LOG_INFO("DoSystemCallHook Start");
+	OriKiSystemServiceStart = (PVOID)((ULONG_PTR)KiSystemServiceStart + 0x14);   // 0x14是KiSystemServiceRepeat和KiSystemServiceStart之间的地址差距
 	auto exclusivity = ExclGainExclusivity();
 	//
 	//push r15
@@ -170,6 +171,7 @@ fffff805`5cbc5119 7413            je      nt!KiSystemServiceRepeat+0x2a (fffff80
 	WPONx64(irql);
 
 	ExclReleaseExclusivity(exclusivity);
+	HYPERPLATFORM_LOG_INFO("DoSystemCallHook End");
 }
 
 //只用于SSDT，不适用于ShadowSSDT

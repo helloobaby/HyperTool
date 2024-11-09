@@ -23,6 +23,12 @@
     <Filter Include="STL">
       <UniqueIdentifier>{0d4b76ef-5687-482e-b446-fa92e2fdb4d1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="json">
+      <UniqueIdentifier>{214ccd9e-e820-4c0f-b23d-d1945556e46d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="minirtl">
+      <UniqueIdentifier>{eb8a29f2-ab10-4ea7-a773-243783734b1a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <Inf Include="HyperPlatform.inf">
@@ -92,6 +98,96 @@
     </ClCompile>
     <ClCompile Include="device.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="json\cJSON.c">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\kcrt.c">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="config.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcat.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strchr.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcmp.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcmpi.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcpy.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strcpyn.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strend.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strlen.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strncmp.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strncmpi.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strncpy.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strstr.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_strstri.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\cmdline.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\hextou64.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\hextoul.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\i64tostr.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\itostr.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\strtoi.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\strtoi64.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\strtou64.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\strtoul.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\u64tohex.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\u64tostr.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\ultohex.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\ultostr.c">
+      <Filter>minirtl</Filter>
+    </ClCompile>
+    <ClCompile Include="minirtl\_filename.c">
+      <Filter>minirtl</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -202,6 +298,27 @@
     </ClInclude>
     <ClInclude Include="error_bugcheck.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="json\cJSON.h">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="json\kcrt.h">
+      <Filter>json</Filter>
+    </ClInclude>
+    <ClInclude Include="config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="minirtl\cmdline.h">
+      <Filter>minirtl</Filter>
+    </ClInclude>
+    <ClInclude Include="minirtl\minirtl.h">
+      <Filter>minirtl</Filter>
+    </ClInclude>
+    <ClInclude Include="minirtl\rtltypes.h">
+      <Filter>minirtl</Filter>
+    </ClInclude>
+    <ClInclude Include="minirtl\_filename.h">
+      <Filter>minirtl</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
