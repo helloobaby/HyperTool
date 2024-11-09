@@ -185,8 +185,8 @@ void RemoveServiceHook()
 	{
 		while (hook.refCount > 0)
 		{
-			HYPERPLATFORM_LOG_INFO("%s reference count is %d , delay 1s",hook.funcName.c_str() ,hook.refCount);
-			KeDelayExecutionThread(KernelMode, false, &MmOneSecond);
+			HYPERPLATFORM_LOG_INFO("%s reference count is %d , delay 30ms",hook.funcName.c_str() ,hook.refCount);
+			KeDelayExecutionThread(KernelMode, false, &Mm30Milliseconds);
 		}
 		hook.Destruct();
 		HYPERPLATFORM_LOG_INFO("unload hook func %s success", hook.funcName.c_str());
