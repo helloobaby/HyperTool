@@ -224,10 +224,34 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	PFILE_OBJECT LocalFileObject;
 	PUNICODE_STRING ProcessName = UtilGetProcessNameByEPROCESS(IoGetCurrentProcess());
 	NTSTATUS MyStatus = ObReferenceObjectByHandle(FileHandle, GENERIC_READ, *IoFileObjectType, KernelMode, (PVOID*)&LocalFileObject, NULL);
+	OBJECT_NAME_INFORMATION* objectNameInfo = NULL;
+	ULONG ReturnLength;
+	auto _ = make_scope_exit([&]() {
+		if (objectNameInfo) {
+			ExFreePoolWithTag(objectNameInfo, L'GetDeviceObjectName');
+		}
+		InterlockedAdd(&vServcieHook[NtDeviceIoControlFileHookIndex].refCount, -1); 
+		});
 
+	if (NT_SUCCESS(MyStatus) && LocalFileObject->DeviceObject) {
+		MyStatus = ObQueryNameString(LocalFileObject->DeviceObject, NULL, 0, &ReturnLength);
+		if (MyStatus == STATUS_INFO_LENGTH_MISMATCH)
+		{
+			objectNameInfo = (OBJECT_NAME_INFORMATION*)ExAllocatePoolWithTag(
+				NonPagedPool,
+				ReturnLength,
+				L'kooh'
+			);
+			if (objectNameInfo != NULL)
+			{
+				// 再次调用获取对象名称
+				MyStatus = ObQueryNameString(LocalFileObject->DeviceObject, objectNameInfo, ReturnLength, &ReturnLength);
+			}
+		}
+	}
 	auto _Hook_Log = [&]() {
 		// 进程名;文件名;控制码;驱动名;设备名
-		HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName);
+		HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ;%wZ", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName,objectNameInfo->Name);
 		};
 
 	if (ProcessName && NT_SUCCESS(MyStatus)) {
@@ -246,7 +270,5 @@ NTSTATUS DetourNtDeviceIoControlFile(
 		}
 	}
 	if (ProcessName) { RtlFreeUnicodeString(ProcessName); ExFreePool(ProcessName); }
-
-	InterlockedAdd(&vServcieHook[NtDeviceIoControlFileHookIndex].refCount, -1);
 	return Status;
 }
