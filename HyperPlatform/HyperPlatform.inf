@@ -4,8 +4,8 @@
 
 [Version]
 Signature="$WINDOWS NT$"
-Class=Sample ; TODO: edit Class
-ClassGuid={78A1C341-4539-11d3-B88D-00C04FAD5171} ; TODO: edit ClassGuid
+Class = HyperTool 
+ClassGuid={0F640AE3-4F0D-1E45-9F6D-6DBD59B2A065} 
 Provider=%ManufacturerName%
 CatalogFile=HyperPlatform.cat
 DriverVer= ; TODO: set DriverVer in stampinf property pages

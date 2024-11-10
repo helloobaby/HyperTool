@@ -225,20 +225,21 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	PUNICODE_STRING ProcessName = UtilGetProcessNameByEPROCESS(IoGetCurrentProcess());
 	NTSTATUS MyStatus = ObReferenceObjectByHandle(FileHandle, GENERIC_READ, *IoFileObjectType, KernelMode, (PVOID*)&LocalFileObject, NULL);
 
+	auto _Hook_Log = [&]() {
+		// 进程名;文件名;控制码;驱动名;设备名
+		HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName);
+		};
+
 	if (ProcessName && NT_SUCCESS(MyStatus)) {
 		// 进程列表为空\开启hook日志
 		if (TraceProcessPathList.empty() && GlobalConfig.hooks_log && ProcessName) {
-
-			HYPERPLATFORM_LOG_INFO("%wZ -> %wZ , %x , %wZ", ProcessName, LocalFileObject->FileName, IoControlCode, LocalFileObject->DeviceObject->DriverObject->DriverName);
-		
+			_Hook_Log();
 		}
 		else {
 			for (auto process_path : TraceProcessPathList) {
 				if (_strstri_a((char*)PsGetProcessImageFileName(PsGetCurrentProcess()), process_path.c_str())) {
 					if (GlobalConfig.hooks_log) {
-
-						HYPERPLATFORM_LOG_INFO("%wZ -> %wZ , %x , %wZ", ProcessName, LocalFileObject->FileName, IoControlCode,LocalFileObject->DeviceObject->DriverObject->DriverName);
-				
+						_Hook_Log();
 					}
 				}
 			}

@@ -16,6 +16,11 @@ namespace std
 	}
 	*/
 
+	template <typename T>
+	struct is_pod_type
+	{
+		static const bool value = false;
+	};
 
 	template <typename T>
 	struct is_pod
@@ -27,11 +32,6 @@ namespace std
 		}
 	};
 
-	template <typename T>
-	struct is_pod_type
-	{
-		static const bool value = false;
-	};
 
 	//
 	// 要对c++所有POD类型全特化

@@ -153,10 +153,6 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   // #define NtDeviceIoControlFileHookIndex 0
   AddServiceHook(UtilGetSystemProcAddress(L"NtDeviceIoControlFile"), DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile, "NtDeviceIoControlFile");
 
-
-  // 创建配置更新线程
-  PsCreateSystemThread(&hConfigThread, 0, NULL, NULL, NULL, &ConfigUpdateThread, NULL);
-
   // Initialize perf functions
   status = PerfInitialization();
   if (!NT_SUCCESS(status)) {
@@ -218,6 +214,9 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   if (need_reinitialization) {
     LogRegisterReinitialization(driver_object);
   }
+
+  // 创建配置更新线程
+  PsCreateSystemThread(&hConfigThread, 0, NULL, NULL, NULL, &ConfigUpdateThread, NULL);
 
   HYPERPLATFORM_LOG_INFO("The VMM has been installed.");
 
