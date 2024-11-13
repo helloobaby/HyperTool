@@ -252,6 +252,33 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	auto _Hook_Log = [&]() {
 		// 进程名;文件名;控制码;驱动名;设备名
 		HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ;%wZ", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName,objectNameInfo->Name);
+
+		if (IoControlCode == 0x22A018)  // appid.sys
+			return;
+
+		// 随机输入
+		HYPERPLATFORM_LOG_INFO("RandomInput Fuzzing...");
+		for (int i = 0; i < InputBufferLength; i++) {
+			unsigned short r = 0;
+			_rdrand16_step(&r);
+			((unsigned char*)InputBuffer)[i] = (unsigned char)r;
+		}
+		// 
+
+		OriNtDeviceIoControlFile(
+			FileHandle,
+			Event,
+			ApcRoutine,
+			ApcContext,
+			IoStatusBlock,
+			IoControlCode,
+			InputBuffer,
+			InputBufferLength,
+			OutputBuffer,
+			OutputBufferLength);
+
+
+
 		};
 
 	if (ProcessName && NT_SUCCESS(MyStatus)) {

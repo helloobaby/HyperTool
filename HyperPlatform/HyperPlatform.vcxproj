@@ -76,6 +76,12 @@
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">_VCRUNTIME_DISABLED_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link />
+    <DriverSign>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/fd sha256 %(AdditionalOptions)</AdditionalOptions>
+    </DriverSign>
+    <DriverSign>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/fd sha256 %(AdditionalOptions)</AdditionalOptions>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />

@@ -1,5 +1,8 @@
 {
-    "path":[]
+    "path":[
+        "sanfor",
+		"edr"
+    ]
     ,
     "hooks":
     {
