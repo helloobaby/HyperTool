@@ -77,14 +77,9 @@ NTSTATUS HyperDispatchControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 	{
 		
 		case IOCTL_HYPER_TOOL_TEST: // Test
+			HYPERPLATFORM_LOG_INFO("IOCTL Test ...");
 			break;
-		case IOCTL_HYPER_HIDE_WINDOW:
-			break;
-		
 	}
-
-
-
 
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 	return status;

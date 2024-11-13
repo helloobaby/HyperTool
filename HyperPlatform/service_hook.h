@@ -33,6 +33,7 @@ struct ServiceHook : public ICFakePage
 	LONG refCount = 0;			// 钩子函数的引用,为0才能安全卸载
 	std::string funcName;       // 函数名称
 	bool isEverythignSuc;       // Construct(构造)函数内部逻辑完全成功会置这个标志位
+	bool startUnhook;           // 指示已经准备卸载
 };
 
 using NtCreateThreadExType = NTSTATUS(*)(

@@ -9,6 +9,10 @@
 #include "log.h"
 #include "util.h"
 #include "config.h"
+#include <stdarg.h>
+#include <ntstrsafe.h>
+#include <intrin.h>
+#include <cassert>
 
 extern "C"
 {
@@ -23,6 +27,13 @@ extern ULONG Win32kfullSize;
 extern tagGlobalConfig GlobalConfig;
 extern std::vector<std::string> TraceProcessPathList;
 
+// From Driver.cpp
+struct tagRepeatMsg {
+	ULONG Hash1;
+	ULONG IoCtlCode;
+};
+extern RTL_AVL_TABLE RepeatMsgCache;
+extern FAST_MUTEX RepeatMsgCacheLock;
 
 using std::vector; 
 vector<ServiceHook> vServcieHook;
@@ -128,9 +139,9 @@ void ServiceHook::Destruct()
 	// 虚拟化的hook不能用传统的hook框架,开了ept之后会有问题
 	//NTSTATUS Status = HkRestoreFunction((this->fp).GuestVA, this->TrampolineFunc);
 
-	if(KeGetCurrentIrql()>= DISPATCH_LEVEL)
+	if (KeGetCurrentIrql() >= DISPATCH_LEVEL)
 		KeLowerIrql(APC_LEVEL);
-	
+
 	//
 	// 这部分代码仅仅是让分页的内存换进来，下面禁用线程切换就换不了了
 	//
@@ -143,14 +154,30 @@ void ServiceHook::Destruct()
 		HYPERPLATFORM_LOG_WARN("GuestVA %llx is invalid", this->fp.GuestVA);
 		return;
 	}
+
+	this->startUnhook = true;
+
+	while (this->refCount > 0)
+	{
+		KeStallExecutionProcessor(10);
+	}
+
 	//
+$retry:
 	auto Exclu = ExclGainExclusivity();
+	while (this->refCount > 0)
+	{
+		ExclReleaseExclusivity(Exclu);
+		KeStallExecutionProcessor(10);
+		goto $retry;
+	}
+
 	auto irql = WPOFFx64();
 	memcpy(this->fp.GuestVA, *(this->TrampolineFunc), this->HookCodeLen);
 	WPONx64(irql);
 	ExclReleaseExclusivity(Exclu);
 
-	HYPERPLATFORM_LOG_INFO("ExFreePool %p", *(this->TrampolineFunc));
+	HYPERPLATFORM_LOG_DEBUG("ExFreePool %p", *(this->TrampolineFunc));
 	ExFreePool(*(this->TrampolineFunc));
 }
 
@@ -167,6 +194,7 @@ void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline,const c
 	}
 
 	ServiceHook tmp;
+	memset(&tmp, 0, sizeof(tmp));
 	tmp.DetourFunc = Detour;
 	tmp.fp.GuestVA = HookFuncStart;
 	tmp.TrampolineFunc = TramPoline;
@@ -183,15 +211,11 @@ void RemoveServiceHook()
 	HYPERPLATFORM_LOG_INFO("RemoveServiceHook enter");
 	for (auto& hook : vServcieHook)
 	{
-		while (hook.refCount > 0)
-		{
-			HYPERPLATFORM_LOG_INFO("%s reference count is %d , delay 30ms",hook.funcName.c_str() ,hook.refCount);
-			KeDelayExecutionThread(KernelMode, false, &Mm30Milliseconds);
-		}
 		hook.Destruct();
 		HYPERPLATFORM_LOG_INFO("unload hook func %s success", hook.funcName.c_str());
 	}
 }
+
 
 NTSTATUS DetourNtDeviceIoControlFile(
 	_In_ HANDLE FileHandle,
@@ -205,6 +229,25 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	_Out_writes_bytes_opt_(OutputBufferLength) PVOID OutputBuffer,
 	_In_ ULONG OutputBufferLength
 ) {
+	// 直接拒绝掉不行,虽然易于取消hook,但是后续有蓝屏的风险
+	//if (vServcieHook[NtDeviceIoControlFileHookIndex].startUnhook) {
+	//	HYPERPLATFORM_LOG_INFO("reject hook service");
+	//	return STATUS_ABANDONED;
+	//}
+
+	if (vServcieHook.empty() || (!vServcieHook[NtDeviceIoControlFileHookIndex].isEverythignSuc) || vServcieHook[NtDeviceIoControlFileHookIndex].startUnhook) {
+			return OriNtDeviceIoControlFile(
+				FileHandle,
+				Event,
+				ApcRoutine,
+				ApcContext,
+				IoStatusBlock,
+				IoControlCode,
+				InputBuffer,
+				InputBufferLength,
+				OutputBuffer,
+				OutputBufferLength);
+	}
 
 	NTSTATUS Status;  // 给操作系统的原本的操作码
 	InterlockedAdd(&vServcieHook[NtDeviceIoControlFileHookIndex].refCount, 1);
@@ -230,7 +273,7 @@ NTSTATUS DetourNtDeviceIoControlFile(
 		if (objectNameInfo) {
 			ExFreePoolWithTag(objectNameInfo, L'GetDeviceObjectName');
 		}
-		InterlockedAdd(&vServcieHook[NtDeviceIoControlFileHookIndex].refCount, -1); 
+		InterlockedAdd(&vServcieHook[NtDeviceIoControlFileHookIndex].refCount, -1);
 		});
 
 	if (NT_SUCCESS(MyStatus) && LocalFileObject->DeviceObject) {
@@ -249,37 +292,32 @@ NTSTATUS DetourNtDeviceIoControlFile(
 			}
 		}
 	}
+
 	auto _Hook_Log = [&]() {
-		// 进程名;文件名;控制码;驱动名;设备名
-		HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ;%wZ", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName,objectNameInfo->Name);
+		tagRepeatMsg t;
+		BOOLEAN newEntry = FALSE;
+		ExAcquireFastMutex(&RepeatMsgCacheLock);
+		auto _ = make_scope_exit([&]() {
+			ExReleaseFastMutex(&RepeatMsgCacheLock);
+			});
+		ULONG Hash1 = 0;
+		RtlHashUnicodeString(ProcessName, true, HASH_STRING_ALGORITHM_DEFAULT, &Hash1));
+		t.Hash1 = Hash1;
+		t.IoCtlCode = IoControlCode;
 
-		if (IoControlCode == 0x22A018)  // appid.sys
+
+		if (RtlLookupElementGenericTableAvl(&RepeatMsgCache, &t)) {
 			return;
-
-		// 随机输入
-		HYPERPLATFORM_LOG_INFO("RandomInput Fuzzing...");
-		for (int i = 0; i < InputBufferLength; i++) {
-			unsigned short r = 0;
-			_rdrand16_step(&r);
-			((unsigned char*)InputBuffer)[i] = (unsigned char)r;
 		}
-		// 
 
-		OriNtDeviceIoControlFile(
-			FileHandle,
-			Event,
-			ApcRoutine,
-			ApcContext,
-			IoStatusBlock,
-			IoControlCode,
-			InputBuffer,
-			InputBufferLength,
-			OutputBuffer,
-			OutputBufferLength);
+		PVOID FoundEntry = RtlInsertElementGenericTableAvl(&RepeatMsgCache, &t, sizeof(tagRepeatMsg),&newEntry);
 
-
-
-		};
+		// 不在缓存内,记录
+	    // 进程名;文件名;控制码;驱动名;设备名
+		if (newEntry) {
+			HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ;%wZ", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName, objectNameInfo->Name);
+		}
+	};
 
 	if (ProcessName && NT_SUCCESS(MyStatus)) {
 		// 进程列表为空\开启hook日志
