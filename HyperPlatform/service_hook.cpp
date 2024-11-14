@@ -278,7 +278,7 @@ NTSTATUS DetourNtDeviceIoControlFile(
 
 		// 不在缓存内,记录
 		// 进程名;文件名;控制码;驱动名;设备名;输入缓冲区长度
-		HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ;%wZ;%x", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName, objectNameInfo->Name, InputBufferLength);
+		HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ;%wZ;%x;%x", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName, objectNameInfo->Name, InputBufferLength,OutputBufferLength);
 	};
 
 	if (ProcessName && NT_SUCCESS(MyStatus)) {
