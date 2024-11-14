@@ -53,24 +53,6 @@ using NtCreateThreadExType = NTSTATUS(*)(
 	IN SIZE_T SizeOfStackReserve,
 	OUT PVOID lpBytesBuffer);
 
-#define NtDeviceIoControlFileHookIndex 0
-using NtDeviceIoControlFileType = decltype(&NtDeviceIoControlFile);
-inline NtDeviceIoControlFileType OriNtDeviceIoControlFile;
-NTSTATUS DetourNtDeviceIoControlFile(
-	_In_ HANDLE FileHandle,
-	_In_opt_ HANDLE Event,
-	_In_opt_ PIO_APC_ROUTINE ApcRoutine,
-	_In_opt_ PVOID ApcContext,
-	_Out_ PIO_STATUS_BLOCK IoStatusBlock,
-	_In_ ULONG IoControlCode,
-	_In_reads_bytes_opt_(InputBufferLength) PVOID InputBuffer,
-	_In_ ULONG InputBufferLength,
-	_Out_writes_bytes_opt_(OutputBufferLength) PVOID OutputBuffer,
-	_In_ ULONG OutputBufferLength
-);
-
-
-
 //
 // 必须保证你这个要hook的函数在给rax赋值之前不使用rax，因为我们使用rax作为跳板
 // 一般来说c/c++函数都不会使用rax，汇编函数就不一定了。比如系统调用时候rax为ssdt index

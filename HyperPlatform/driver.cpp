@@ -35,7 +35,6 @@ extern "C"
 // systemcall.cpp
 extern NTSTATUS InitSystemVar();
 extern void DoSystemCallHook();
-extern NTSTATUS HookStatus;
 extern fpSystemCall SystemCallFake;
 extern char SystemCallRecoverCode[15];
 //
@@ -43,17 +42,6 @@ extern char SystemCallRecoverCode[15];
 extern bool is_cet_enable;
 
 extern LARGE_INTEGER MmHalfSecond;
-
-struct tagRepeatMsg {
-    ~tagRepeatMsg(){}
-    ULONG Hash1;
-    ULONG IoCtlCode;
-};
-std::vector<tagRepeatMsg> RepeatMsgCache;
-FAST_MUTEX RepeatMsgCacheLock;
-
-
-
  
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -159,11 +147,6 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   }
 
   DoSystemCallHook();
-
-  ExInitializeFastMutex(&RepeatMsgCacheLock);
-
-  // #define NtDeviceIoControlFileHookIndex 0
-  AddServiceHook(UtilGetSystemProcAddress(L"NtDeviceIoControlFile"), DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile, "NtDeviceIoControlFile");
 
   // Initialize perf functions
   status = PerfInitialization();
