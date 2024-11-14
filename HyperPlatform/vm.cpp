@@ -656,11 +656,11 @@ _Use_decl_annotations_ static bool VmpSetupVmcs(
                             vm_pinctl_requested.all)};
 
   VmxProcessorBasedControls vm_procctl_requested = {};
-  vm_procctl_requested.fields.rdtsc_exiting = false;//接管rdtsc?
-  vm_procctl_requested.fields.cr3_load_exiting = true; //mov cr3,x vm-exit
-  vm_procctl_requested.fields.mov_dr_exiting = true; //读写dr寄存器 vm-exit
-  vm_procctl_requested.fields.use_io_bitmaps = true; //默认使用io bitmap
-  vm_procctl_requested.fields.use_msr_bitmaps = true;//默认使用msr bitmap
+  vm_procctl_requested.fields.rdtsc_exiting = true;   // 接管rdtsc
+  vm_procctl_requested.fields.cr3_load_exiting = true; // mov cr3,x vm-exit
+  vm_procctl_requested.fields.mov_dr_exiting = true;   // 读写dr寄存器 vm-exit
+  vm_procctl_requested.fields.use_io_bitmaps = true;   // 默认使用io bitmap
+  vm_procctl_requested.fields.use_msr_bitmaps = true;  // 默认使用msr bitmap
   vm_procctl_requested.fields.activate_secondary_control = true;
   VmxProcessorBasedControls vm_procctl = {
       VmpAdjustControlValue((use_true_msrs) ? Msr::kIa32VmxTrueProcBasedCtls
@@ -668,8 +668,10 @@ _Use_decl_annotations_ static bool VmpSetupVmcs(
                             vm_procctl_requested.all)};
 
   VmxSecondaryProcessorBasedControls vm_procctl2_requested = {};
-  vm_procctl2_requested.fields.enable_ept = true; //开启EPT
-  vm_procctl2_requested.fields.descriptor_table_exiting = true; 
+  vm_procctl2_requested.fields.enable_ept = true;                // 不开启ept可以更好的复现一些问题
+  // TODO : 这地方的VM-EXIT有BUG,不要开
+  // 目前发现与火绒驱动不兼容
+  vm_procctl2_requested.fields.descriptor_table_exiting = false; 
   vm_procctl2_requested.fields.enable_rdtscp = true; 
   vm_procctl2_requested.fields.enable_vpid = true; 
   vm_procctl2_requested.fields.enable_invpcid = true;

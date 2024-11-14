@@ -26,14 +26,18 @@ struct ServiceHook : public ICFakePage
 	~ServiceHook() {};
 	virtual void Construct() override;
 	virtual void Destruct() override;
+
+
+	std::string funcName;       // 被hook的函数名称
+
+// 安全卸载相关
+	LONG refCount = 0;			// 钩子函数的引用,为0才能安全卸载
+	
+//private:
 	PVOID DetourFunc;
 	PVOID *TrampolineFunc;
 	ULONG HookCodeLen;
 	bool isWin32Hook = false;   // 涉及到Win32kfull模块内函数的hook置为true
-	LONG refCount = 0;			// 钩子函数的引用,为0才能安全卸载
-	std::string funcName;       // 函数名称
-	bool isEverythignSuc;       // Construct(构造)函数内部逻辑完全成功会置这个标志位
-	bool startUnhook;           // 指示已经准备卸载
 };
 
 using NtCreateThreadExType = NTSTATUS(*)(

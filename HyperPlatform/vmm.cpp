@@ -14,11 +14,6 @@
 #include "util.h"
 #include "performance.h"
 
-//
-//如果此驱动需要在vmware中测试，定义此宏
-//
-#define VMWARE
-
 extern "C" {
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,13 +27,13 @@ extern "C" {
 //
 
 // Whether VM-exit recording is enabled
-static const bool kVmmpEnableRecordVmExit = false;
+static const bool kVmmpEnableRecordVmExit = true;
 
 // How many events should be recorded per a processor
 static const long kVmmpNumberOfRecords = 100;
 
 // How many processors are supported for recording
-static const long kVmmpNumberOfProcessors = 2;
+static const long kVmmpNumberOfProcessors = 8;
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -184,7 +179,12 @@ static VmExitHistory g_vmmp_vm_exit_history[kVmmpNumberOfProcessors]
 //
 
 
-
+/*
+Since a VM-exit handler is executed without receiving interrupts under a high IRQL, it is technically illegal to use API unless it is allowed to be called on HIGH_LEVEL IRQL.
+Violation of this rule can lead to unexpected behaviour. For example, using RtlPcToFileHeader in a VM-exit handler can cause this incomprehensible broken font,
+even though implementation of the RtlPcToFileHeader seems to be safe to use.
+See the thread on Issue #3 for more details.
+*/
 // A high level VMX handler called from AsmVmExitHandler().
 // Return true for vmresume, or return false for vmxoff.
 #pragma warning(push)
@@ -192,44 +192,19 @@ static VmExitHistory g_vmmp_vm_exit_history[kVmmpNumberOfProcessors]
 _Use_decl_annotations_ bool __stdcall VmmVmExitHandler(VmmInitialStack *stack) {
   // Save guest's context and raise IRQL as quick as possible
   //
-  //CR8是不在host state、guest state里的
-  //也就是说guest_irql与guest_cr8应该是一样的
+  // CR8是不在host state、guest state里的
+  // 也就是说guest_irql与guest_cr8应该是一样的
   //
   const auto guest_irql = KeGetCurrentIrql();
   const auto guest_cr8 = IsX64() ? __readcr8() : 0;
 
   //
-  //禁止线程切换，屏蔽<=2irql的中断请求，同样不允许换页
-  //这个时候很多API都是无法调用的
+  // 禁止线程切换，屏蔽<=2irql的中断请求，同样不允许换页
+  // 这个时候很多API都是无法调用的
   //
   if (guest_irql < DISPATCH_LEVEL) {
     KeRaiseIrqlToDpcLevel();
   }
-
-  /**
-  * [确定是哪个进程vm-exit的方法（IoGetCurrentProcess）]
-  * 
-  * IoGetCurrentProcess的行为
-  * msr[C0000101H]->gs_base->kprcb->current_thread->apc_state.process
-  * 
-  * Q:kprcb在system进程和其他进程的内核cr3下是同样的地址吗？
-  * A:是一样的，同样的va在不同的cr3下对应的同一个物理页面，也就是说我们可以保证vm-exit前后gs指向的都是同一个物理页面
-  * 然后我们可以通过IoGetCurrentProcess得到PEPROCESS，这些内核对象也应该是在不同cr3下对应相同物理页面的。那么我们
-  * 就可以引用EPROCESS.ImageProcessName了。
-  *
-  *
-  * 
-  */
-
-
-  //
-  //打印出vm-exit的程序，在hyperplatform这种虚拟机下这样没什么问题，在正规虚拟机下比如vbox，vmware肯定不行
-  //
-  #if 0
-  PEPROCESS Process = IoGetCurrentProcess();
-  const char *ImageFileName = PsGetProcessImageFileName(Process);
-  HYPERPLATFORM_LOG_INFO("vm-exit process is %s", ImageFileName);
-  #endif
 
   // Capture the current guest state
   GuestContext guest_context = {stack,
@@ -246,38 +221,13 @@ _Use_decl_annotations_ bool __stdcall VmmVmExitHandler(VmmInitialStack *stack) {
   // the stale, old values.
   //
 
- /*
- * 以下代码其实就是让dump文件方便分析guest的执行环境
- * 注意guest_state.rip有可能是guest vm-exit的rip前面、后面或者就是导致vm-exit的rip
- * 
-0: kd> k
- # Child-SP          RetAddr               Call Site
-00 ffffaf0f`b84b8bb0 fffff800`f9e6810b     HyperPlatform!EptHandleEptViolation+0x146
-01 ffffaf0f`b84b8c50 fffff800`f9e699f7     HyperPlatform!VmmpHandleEptViolation+0x2b
-02 ffffaf0f`b84b8c90 fffff800`f9e66e6e     HyperPlatform!VmmpHandleVmExit+0x1f7
-03 ffffaf0f`b84b8cf0 fffff800`f9e61190     HyperPlatform!VmmVmExitHandler+0xce
-04 ffffaf0f`b84b8d60 fffff800`f9efcf94     HyperPlatform!AsmVmmEntryPoint+0x4d
-05 ffff848b`a2909988 fffff800`f9eda459     PCHunter64as+0x6cf94
-06 ffff848b`a2909990 fffff800`f9edb775     PCHunter64as+0x4a459
-07 ffff848b`a29099e0 fffff800`f9f01611     PCHunter64as+0x4b775
-08 ffff848b`a2909a30 fffff807`19e869e9     PCHunter64as+0x71611
-09 ffff848b`a2909b30 fffff807`1a402e51     nt!IofCallDriver+0x59
-0a ffff848b`a2909b70 fffff807`1a42de5a     nt!IopSynchronousServiceTail+0x1b1
-0b ffff848b`a2909c20 fffff807`1a3a4b66     nt!IopXxxControlFile+0x68a
-0c ffff848b`a2909d60 fffff807`19fd2885     nt!NtDeviceIoControlFile+0x56
-0d ffff848b`a2909dd0 00007ffe`5711f774     nt!KiSystemServiceCopyEnd+0x25
-0e 00000000`0013c698 00007ffe`5327ef57     0x00007ffe`5711f774
-0f 00000000`0013c6a0 00000000`00000a82     0x00007ffe`5327ef57
- */
+ 
+ // 以下代码其实就是让dump文件方便分析guest的执行环境
+ // 注意guest_state.rip有可能是guest vm-exit的rip前面、后面或者就是导致vm-exit的rip
+
   stack->trap_frame.sp = guest_context.gp_regs->sp;
-#if 0
-  stack->trap_frame.ip = //所有由指令造成的vm-exit都是fault类型,也就是说kGuestRip一定指向造成vm-exit的地址
-      guest_context.ip + UtilVmRead(VmcsField::kVmExitInstructionLen);
-#endif 
-  //
-  //其实可以直接这样设置，而不是像上面那样注释的
-  //
-  stack->trap_frame.ip = guest_context.ip;
+
+  stack->trap_frame.ip = guest_context.ip;  // 造成VM-Exit的地址?
   // Dispatch the current VM-exit event
   VmmpHandleVmExit(&guest_context);
 
@@ -1359,6 +1309,7 @@ _Use_decl_annotations_ static void VmmpHandleVmx(GuestContext *guest_context) {
   guest_context->flag_reg.fields.sf = false;
   guest_context->flag_reg.fields.of = false;
   UtilVmWrite(VmcsField::kGuestRflags, guest_context->flag_reg.all);
+  HYPERPLATFORM_LOG_INFO_SAFE("Ignore vmx instruction ");
   VmmpAdjustGuestInstructionPointer(guest_context);
 }
 
@@ -1536,29 +1487,18 @@ _Use_decl_annotations_ static ULONG_PTR *VmmpSelectRegister(
 _Use_decl_annotations_ static void VmmpAdjustGuestInstructionPointer(
     GuestContext *guest_context) {
 
-  //让guest执行下一条指令
+  // 让guest执行下一条指令
   const auto exit_inst_length = UtilVmRead(VmcsField::kVmExitInstructionLen);
   UtilVmWrite(VmcsField::kGuestRip, guest_context->ip + exit_inst_length);
 
   //https://howtohypervise.blogspot.com/2019/01/a-common-missight-in-most-hypervisors.html
-  //常规事件注入？ 悬挂异常？
+  // 常规事件注入？ 悬挂异常？
   // Inject #DB if TF is set
-#if 1
   if (guest_context->flag_reg.fields.tf) {
-#if 1
     VmmpInjectInterruption(InterruptionType::kHardwareException,
                            InterruptionVector::kDebugException, false, 0);
     UtilVmWrite(VmcsField::kVmEntryInstructionLen, exit_inst_length);
-#endif
-#if 0 
-    //
-    //测试 pendingException为0
-    //
-    auto pendingException = (pending_debug_exception)UtilVmRead64(VmcsField::kGuestPendingDbgExceptions);
-    HYPERPLATFORM_COMMON_DBG_BREAK();
-#endif
   }
-#endif 
 }
 
 // Handle VMRESUME or VMXOFF failure. Fatal error.

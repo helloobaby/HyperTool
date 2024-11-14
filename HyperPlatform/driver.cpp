@@ -45,10 +45,11 @@ extern bool is_cet_enable;
 extern LARGE_INTEGER MmHalfSecond;
 
 struct tagRepeatMsg {
+    ~tagRepeatMsg(){}
     ULONG Hash1;
     ULONG IoCtlCode;
 };
-RTL_AVL_TABLE RepeatMsgCache;
+std::vector<tagRepeatMsg> RepeatMsgCache;
 FAST_MUTEX RepeatMsgCacheLock;
 
 
@@ -160,15 +161,6 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   DoSystemCallHook();
 
   ExInitializeFastMutex(&RepeatMsgCacheLock);
-  RtlInitializeGenericTableAvl(&RepeatMsgCache, [](struct _RTL_AVL_TABLE* Table, PVOID FirstStruct, PVOID SecondStruct) -> RTL_GENERIC_COMPARE_RESULTS {
-      tagRepeatMsg* FirstEntry = (tagRepeatMsg*)FirstStruct;
-      tagRepeatMsg* SecondEntry = (tagRepeatMsg*)SecondStruct;
-      if ((FirstEntry->Hash1 == SecondEntry->Hash1) && (FirstEntry->IoCtlCode == SecondEntry->IoCtlCode)) {
-          return GenericEqual;
-      }
-      return GenericLessThan;
-      }, [](struct _RTL_AVL_TABLE* Table, CLONG ByteSize)-> PVOID {return ExAllocatePoolWithTag(PagedPool, ByteSize, 'pavl'); }, [](struct _RTL_AVL_TABLE* Table, PVOID Buffer) {
-          ExFreePoolWithTag(Buffer, 'pavl'); }, NULL);
 
   // #define NtDeviceIoControlFileHookIndex 0
   AddServiceHook(UtilGetSystemProcAddress(L"NtDeviceIoControlFile"), DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile, "NtDeviceIoControlFile");
@@ -215,6 +207,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
     return status;
   }
 
+  // 从这里返回,以关闭虚拟化
+  // 有些BUG直接触发三重错误,先从这里返回判断是否是虚拟化代码导致的
   //return STATUS_SUCCESS;
 
   // Virtualize all processors

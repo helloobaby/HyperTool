@@ -29,10 +29,11 @@ extern std::vector<std::string> TraceProcessPathList;
 
 // From Driver.cpp
 struct tagRepeatMsg {
+	~tagRepeatMsg() {}
 	ULONG Hash1;
 	ULONG IoCtlCode;
 };
-extern RTL_AVL_TABLE RepeatMsgCache;
+extern std::vector<tagRepeatMsg> RepeatMsgCache;
 extern FAST_MUTEX RepeatMsgCacheLock;
 
 using std::vector; 
@@ -62,7 +63,7 @@ void ServiceHook::Construct()
 	// GuestPA为GuestVA这个页面起始的物理地址
 	// GuestVA必须初始化后不能改变
 	//
-	//如果pte.vaild为0，MmGetPhysicalAddress返回0
+	// 如果pte.vaild为0，MmGetPhysicalAddress返回0
 	//
 	this->fp.GuestPA = MmGetPhysicalAddress(tmp);
 	if (!this->fp.GuestPA.QuadPart)
@@ -119,23 +120,17 @@ void ServiceHook::Construct()
 
 	PVOID* Ptr = &this->DetourFunc;
 	memcpy(hook + 2, Ptr, 8);
-	memcpy((PVOID)this->fp.GuestVA, hook, sizeof(hook));
+
+	vServcieHook.push_back(*this);
+	memcpy((PVOID)this->fp.GuestVA, hook, sizeof(hook));   // 实际hook
 
 	WPONx64(irql);
 
 	ExclReleaseExclusivity(exclusivity);
-
-	// 
-	this->isEverythignSuc = true;
 }
 
 void ServiceHook::Destruct()
 {
-	if (!this->isEverythignSuc) {
-		HYPERPLATFORM_LOG_WARN("ServiceHook::Destruct skip");
-		return;
-	}
-
 	// 虚拟化的hook不能用传统的hook框架,开了ept之后会有问题
 	//NTSTATUS Status = HkRestoreFunction((this->fp).GuestVA, this->TrampolineFunc);
 
@@ -155,29 +150,20 @@ void ServiceHook::Destruct()
 		return;
 	}
 
-	this->startUnhook = true;
-
 	while (this->refCount > 0)
 	{
-		KeStallExecutionProcessor(10);
+		HYPERPLATFORM_LOG_INFO("%s reference count is %d , delay 30ms", this->funcName.c_str(), this->refCount);
+		KeDelayExecutionThread(KernelMode, false, &Mm30Milliseconds);
 	}
 
 	//
-$retry:
 	auto Exclu = ExclGainExclusivity();
-	while (this->refCount > 0)
-	{
-		ExclReleaseExclusivity(Exclu);
-		KeStallExecutionProcessor(10);
-		goto $retry;
-	}
 
 	auto irql = WPOFFx64();
 	memcpy(this->fp.GuestVA, *(this->TrampolineFunc), this->HookCodeLen);
 	WPONx64(irql);
 	ExclReleaseExclusivity(Exclu);
 
-	HYPERPLATFORM_LOG_DEBUG("ExFreePool %p", *(this->TrampolineFunc));
 	ExFreePool(*(this->TrampolineFunc));
 }
 
@@ -200,7 +186,6 @@ void AddServiceHook(PVOID HookFuncStart, PVOID Detour, PVOID *TramPoline,const c
 	tmp.TrampolineFunc = TramPoline;
 	tmp.funcName = funcName;
 	tmp.Construct();
-	vServcieHook.push_back(tmp);
 }
 
 //
@@ -229,26 +214,6 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	_Out_writes_bytes_opt_(OutputBufferLength) PVOID OutputBuffer,
 	_In_ ULONG OutputBufferLength
 ) {
-	// 直接拒绝掉不行,虽然易于取消hook,但是后续有蓝屏的风险
-	//if (vServcieHook[NtDeviceIoControlFileHookIndex].startUnhook) {
-	//	HYPERPLATFORM_LOG_INFO("reject hook service");
-	//	return STATUS_ABANDONED;
-	//}
-
-	if (vServcieHook.empty() || (!vServcieHook[NtDeviceIoControlFileHookIndex].isEverythignSuc) || vServcieHook[NtDeviceIoControlFileHookIndex].startUnhook) {
-			return OriNtDeviceIoControlFile(
-				FileHandle,
-				Event,
-				ApcRoutine,
-				ApcContext,
-				IoStatusBlock,
-				IoControlCode,
-				InputBuffer,
-				InputBufferLength,
-				OutputBuffer,
-				OutputBufferLength);
-	}
-
 	NTSTATUS Status;  // 给操作系统的原本的操作码
 	InterlockedAdd(&vServcieHook[NtDeviceIoControlFileHookIndex].refCount, 1);
 
@@ -271,7 +236,7 @@ NTSTATUS DetourNtDeviceIoControlFile(
 	ULONG ReturnLength;
 	auto _ = make_scope_exit([&]() {
 		if (objectNameInfo) {
-			ExFreePoolWithTag(objectNameInfo, L'GetDeviceObjectName');
+			ExFreePoolWithTag(objectNameInfo, 'kooh');
 		}
 		InterlockedAdd(&vServcieHook[NtDeviceIoControlFileHookIndex].refCount, -1);
 		});
@@ -283,7 +248,7 @@ NTSTATUS DetourNtDeviceIoControlFile(
 			objectNameInfo = (OBJECT_NAME_INFORMATION*)ExAllocatePoolWithTag(
 				NonPagedPool,
 				ReturnLength,
-				L'kooh'
+				'kooh'
 			);
 			if (objectNameInfo != NULL)
 			{
@@ -295,28 +260,25 @@ NTSTATUS DetourNtDeviceIoControlFile(
 
 	auto _Hook_Log = [&]() {
 		tagRepeatMsg t;
-		BOOLEAN newEntry = FALSE;
 		ExAcquireFastMutex(&RepeatMsgCacheLock);
 		auto _ = make_scope_exit([&]() {
 			ExReleaseFastMutex(&RepeatMsgCacheLock);
 			});
 		ULONG Hash1 = 0;
-		RtlHashUnicodeString(ProcessName, true, HASH_STRING_ALGORITHM_DEFAULT, &Hash1));
+		RtlHashUnicodeString(ProcessName, true, HASH_STRING_ALGORITHM_DEFAULT, &Hash1);
 		t.Hash1 = Hash1;
 		t.IoCtlCode = IoControlCode;
 
-
-		if (RtlLookupElementGenericTableAvl(&RepeatMsgCache, &t)) {
-			return;
+		for (auto s : RepeatMsgCache) {
+			if (s.Hash1 == t.Hash1 && s.IoCtlCode == t.IoCtlCode)
+				return;
 		}
 
-		PVOID FoundEntry = RtlInsertElementGenericTableAvl(&RepeatMsgCache, &t, sizeof(tagRepeatMsg),&newEntry);
+		RepeatMsgCache.push_back(t);
 
 		// 不在缓存内,记录
-	    // 进程名;文件名;控制码;驱动名;设备名
-		if (newEntry) {
-			HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ;%wZ", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName, objectNameInfo->Name);
-		}
+		// 进程名;文件名;控制码;驱动名;设备名;输入缓冲区长度
+		HYPERPLATFORM_LOG_INFO("%wZ;%wZ;%x;%wZ;%wZ;%x", ProcessName, &LocalFileObject->FileName, IoControlCode, &LocalFileObject->DeviceObject->DriverObject->DriverName, objectNameInfo->Name, InputBufferLength);
 	};
 
 	if (ProcessName && NT_SUCCESS(MyStatus)) {

@@ -706,9 +706,6 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
 
   for (auto& service_hook : vServcieHook)
   {
-      if (!service_hook.isEverythignSuc)
-          continue;
-
       if (fault_pa >= service_hook.fp.GuestPA.QuadPart &&
           fault_pa <= service_hook.fp.GuestPA.QuadPart + PAGE_SIZE)
       {
@@ -908,8 +905,6 @@ void EptFixOriginEpt(EptData* const EptData)
 
     for (auto& service_hook : vServcieHook)
     {
-        if (!service_hook.isEverythignSuc)
-            continue;
         ept_entry = EptGetEptPtEntry(EptData, service_hook.fp.GuestPA.QuadPart);
         ept_entry->fields.read_access = 0;
         ept_entry->fields.write_access = 0;
