@@ -62,12 +62,10 @@ global variables are not used. */
 #if defined _MSC_VER || defined  __SYMBIAN32__
 static void* LocalPcreMalloc(size_t aSize)
   {
-  //return malloc(aSize);
 	  return ExAllocatePoolWithTag( NonPagedPool, aSize, 'KRE' );
   }
 static void LocalPcreFree(void* aPtr)
   {
-  //free(aPtr);
 	  return ExFreePoolWithTag( aPtr, 'KRE' );
   }
 PCRE_EXP_DATA_DEFN void *(*PUBL(malloc))(size_t) = LocalPcreMalloc;

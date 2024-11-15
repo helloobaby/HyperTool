@@ -397,6 +397,9 @@
     <ClInclude Include="regex\pcre_internal.h">
       <Filter>regex</Filter>
     </ClInclude>
+    <ClInclude Include="pcre_test.h">
+      <Filter>regex</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="HyperPlatform.ruleset" />

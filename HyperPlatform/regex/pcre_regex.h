@@ -1,5 +1,6 @@
 #define PCRE_STATIC // 静态库编译选项
 #include "pcre.h"
+#include "../log.h"
 
 extern "C" int _fltused = 0;
 
@@ -20,8 +21,8 @@ extern "C" int _fltused = 0;
 /** 
 * @_ismatch  实现字符串并返回是否匹配 
 * @param   src 源字符串
-* @param   pattern  正则表达式 
-* @return  如果返回非 -1 就是已匹配到 
+* @param   pattern  PCRE正则表达式 
+* @return  pcre_exec接口的返回值 >0就是匹配到了
 */ 
 
 int _ismatch( char* src, char* pattern)
@@ -31,7 +32,7 @@ int _ismatch( char* src, char* pattern)
 	int  erroffset;
 	int  ovector[OVECCOUNT];
 	int  result;
-
+	
 	re = pcre_compile(pattern,// pattern, 输入参数，将要被编译的字符串形式的正则表达式
 		0,            // options, 输入参数，用来指定编译时的一些选项
 		&error,       // errptr, 输出参数，用来输出错误信息
@@ -39,8 +40,9 @@ int _ismatch( char* src, char* pattern)
 		NULL);        // tableptr, 输入参数，用来指定字符表，一般情况用NULL
 
 
-	if (re == NULL) {  //如果编译失败，返回错误信息
-		return -1;
+	if (re == NULL) {  // 如果编译失败，返回-1
+		HYPERPLATFORM_LOG_INFO("Regex Exp Compile fail , %s", pattern);
+		return PCRE_ERROR_NOMATCH;
 	}
 	result = pcre_exec(re, // code, 输入参数，用pcre_compile编译好的正则表达结构的指针
 		NULL,          // extra, 输入参数，用来向pcre_exec传一些额外的数据信息的结构的指针
@@ -51,12 +53,6 @@ int _ismatch( char* src, char* pattern)
 		ovector,       // ovector, 输出参数，用来返回匹配位置偏移量的数组
 		OVECCOUNT);    // ovecsize, 输入参数， 用来返回匹配位置偏移量的数组的最大大小
 
-	if (result < 0) {
-		pcre_free(re);
-		return -1;
-	}
-
 	pcre_free(re);
-
 	return result;
 }  

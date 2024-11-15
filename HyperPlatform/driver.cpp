@@ -25,7 +25,7 @@
 #include "config.h"
 #include "minirtl/minirtl.h"
 #include "minirtl/_filename.h"
-#include "regex/pcre_regex.h"
+#include "pcre_test.h"
 
 extern "C"
 {
@@ -113,6 +113,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   else if (!NT_SUCCESS(status)) {
       return status;
   }
+
+  pcre_test();
 
   // Test if the system is supported
   if (!DriverpIsSuppoetedOS()) {
