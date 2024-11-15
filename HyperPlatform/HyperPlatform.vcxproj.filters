@@ -9,10 +9,6 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
     <Filter Include="Driver Files">
       <UniqueIdentifier>{8E41214B-6785-4CFE-B992-037D68949A14}</UniqueIdentifier>
       <Extensions>inf;inv;inx;mof;mc;</Extensions>
@@ -28,6 +24,9 @@
     </Filter>
     <Filter Include="minirtl">
       <UniqueIdentifier>{eb8a29f2-ab10-4ea7-a773-243783734b1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="regex">
+      <UniqueIdentifier>{86c2937e-5e81-4693-82f4-6fdc73f8003a}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -189,6 +188,69 @@
     <ClCompile Include="minirtl\_filename.c">
       <Filter>minirtl</Filter>
     </ClCompile>
+    <ClCompile Include="fuzz\fuzz.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_dfa_exec.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_exec.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_fullinfo.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_get.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_globals.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_maketables.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_newline.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_ord2utf8.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_refcount.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_string_utils.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_study.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_tables.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_ucd.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_valid_utf8.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_version.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_xclass.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_byte_order.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_compile.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_config.c">
+      <Filter>regex</Filter>
+    </ClCompile>
+    <ClCompile Include="regex\pcre_chartables.c">
+      <Filter>regex</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asm.h">
@@ -319,6 +381,21 @@
     </ClInclude>
     <ClInclude Include="minirtl\_filename.h">
       <Filter>minirtl</Filter>
+    </ClInclude>
+    <ClInclude Include="fuzz\fuzz.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="regex\pcre.h">
+      <Filter>regex</Filter>
+    </ClInclude>
+    <ClInclude Include="regex\pcre_regex.h">
+      <Filter>regex</Filter>
+    </ClInclude>
+    <ClInclude Include="regex\config.h">
+      <Filter>regex</Filter>
+    </ClInclude>
+    <ClInclude Include="regex\pcre_internal.h">
+      <Filter>regex</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

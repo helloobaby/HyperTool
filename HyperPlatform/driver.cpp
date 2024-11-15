@@ -25,12 +25,12 @@
 #include "config.h"
 #include "minirtl/minirtl.h"
 #include "minirtl/_filename.h"
+#include "regex/pcre_regex.h"
 
 extern "C"
 {
 #include "kernel-hook/khook/khook/hk.h"
 }
-
 
 // systemcall.cpp
 extern NTSTATUS InitSystemVar();
@@ -91,7 +91,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
                                             PUNICODE_STRING registry_path) {
   UNREFERENCED_PARAMETER(registry_path);
   PAGED_CODE()
-
+      
   static const wchar_t kLogFilePath[] = L"\\SystemRoot\\HyperPlatform.log";
   static const auto kLogLevel =
       (IsReleaseBuild()) ? kLogPutLevelInfo | kLogOptDisableFunctionName

@@ -134,4 +134,44 @@ void* k_realloc(void* ptr, size_t new_size)
 
 	return NULL;
 }
+
+int k_ispunct(int c) {
+    return (c >= 33 && c <= 47) || (c >= 58 && c <= 64) || (c >= 91 && c <= 96) || (c >= 123 && c <= 126);
+}
+
+int k_isalnum(int c) {
+    return k_isalpha(c) || (c >= '0' && c <= '9');
+}
+
+int k_isgraph(int c) {
+    return (c >= 33 && c <= 126);
+}
+
+int k_iscntrl(int c) {
+    return (c >= 0 && c <= 31) || (c == 127);
+}
+
+int k_isdigit(int c) {
+    return (c >= '0' && c <= '9');
+}
+
+int k_isxdigit(int c) {
+    return ((c >= '0' && c <= '9') ||    
+        (c >= 'a' && c <= 'f') ||    
+        (c >= 'A' && c <= 'F'));   
+}
+int k_isupper(int c) {
+    return (c >= 'A' && c <= 'Z');
+}
+int k_islower(int c) {
+    return (c >= 'a' && c <= 'z');
+}
+int k_isspace(int c) {
+    return (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f');
+}
+int k_isprint(int c) {
+    return (c >= 32 && c <= 126);
+}
+
+
 #pragma warning(pop)

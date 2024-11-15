@@ -15,7 +15,6 @@ extern LARGE_INTEGER Mm30Milliseconds;
 tagGlobalConfig GlobalConfig;
 ULONGLONG Config_timestamp;
 
-
 // 如果这个列表不为空的话,所有的API记录和Syscall这种能绑定到进程(路径)的都会走一遍这个过滤
 // 过滤算法其实就是最简单的类似strstr,暂时不考虑正则表达式
 std::vector<std::string> TraceProcessPathList;
