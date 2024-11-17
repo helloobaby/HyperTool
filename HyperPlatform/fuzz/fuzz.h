@@ -1,2 +1,6 @@
 #pragma once
-#include "../common.h"
+namespace fuzz {
+
+	void FuzzInit();
+
+}

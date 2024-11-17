@@ -1,25 +1,11 @@
 #pragma once
-#include"include/vector.hpp"
-#include"include/string.hpp"
-#include"FakePage.h"
-#include<stdint.h>
+#include "include/vector.hpp"
+#include "include/string.hpp"
+#include "util.h"
+#include "FakePage.h"
+#include <stdint.h>
 
-typedef HANDLE  HWND;
 
-#define PROCESS_TERMINATE                  (0x0001)  
-#define PROCESS_CREATE_THREAD              (0x0002)  
-#define PROCESS_SET_SESSIONID              (0x0004)  
-#define PROCESS_VM_OPERATION               (0x0008)  
-#define PROCESS_VM_READ                    (0x0010)  
-#define PROCESS_VM_WRITE                   (0x0020)  
-#define PROCESS_DUP_HANDLE                 (0x0040)  
-#define PROCESS_CREATE_PROCESS             (0x0080)  
-#define PROCESS_SET_QUOTA                  (0x0100)  
-#define PROCESS_SET_INFORMATION            (0x0200)  
-#define PROCESS_QUERY_INFORMATION          (0x0400)  
-#define PROCESS_SUSPEND_RESUME             (0x0800)  
-#define PROCESS_QUERY_LIMITED_INFORMATION  (0x1000)  
-#define PROCESS_SET_LIMITED_INFORMATION    (0x2000)  
 
 struct ServiceHook : public ICFakePage
 {
@@ -39,6 +25,19 @@ struct ServiceHook : public ICFakePage
 	ULONG HookCodeLen;
 	bool isWin32Hook = false;   // 涉及到Win32kfull模块内函数的hook置为true
 };
+extern std::vector<ServiceHook> vServcieHook;
+#define ENTER_HOOK(FUNC_NAME)  			for (auto &h : vServcieHook) {					\
+				if (!strcmp(h.funcName.c_str(), FUNC_NAME)) {		\
+					InterlockedAdd(&h.refCount, 1);			\
+				}											\
+			}												\
+			auto a7808419_a956_4174_865a_4e62a3e7f969 = make_scope_exit([&]() {				\
+				for (auto& h : vServcieHook) {				\
+					if (!strcmp(h.funcName.c_str(), FUNC_NAME)) { \
+						InterlockedAdd(&h.refCount, -1);	\
+					}										\
+				}											\
+				});											
 
 using NtCreateThreadExType = NTSTATUS(*)(
 	OUT PHANDLE hThread,

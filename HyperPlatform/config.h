@@ -1,5 +1,6 @@
 #pragma once
 #include "include/stdafx.h"
+#include "include/string.hpp"
 
 // 一般卸载的时候置为True
 inline bool ConfigExitVar = false;
@@ -13,7 +14,10 @@ void ConfigUpdateThread(
 
 
 struct tagGlobalConfig {
+	tagGlobalConfig() = default;
+	~tagGlobalConfig() = default;
 	bool hooks_log;
+	std::string path;
 };
 
 HANDLE OpenFile(wchar_t* filepath);

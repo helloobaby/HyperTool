@@ -26,6 +26,7 @@
 #include "minirtl/minirtl.h"
 #include "minirtl/_filename.h"
 #include "regex/pcre_regex.h"
+#include "fuzz/fuzz.h"
 
 extern "C"
 {
@@ -148,6 +149,8 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
   DoSystemCallHook();
 
+  fuzz::FuzzInit();
+
   // Initialize perf functions
   status = PerfInitialization();
   if (!NT_SUCCESS(status)) {
@@ -190,6 +193,9 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
     return status;
   }
 
+  // 创建配置更新线程
+  PsCreateSystemThread(&hConfigThread, 0, NULL, NULL, NULL, &ConfigUpdateThread, NULL);
+
   // 从这里返回,以关闭虚拟化
   // 有些BUG直接触发三重错误,先从这里返回判断是否是虚拟化代码导致的
   //return STATUS_SUCCESS;
@@ -211,9 +217,6 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   if (need_reinitialization) {
     LogRegisterReinitialization(driver_object);
   }
-
-  // 创建配置更新线程
-  PsCreateSystemThread(&hConfigThread, 0, NULL, NULL, NULL, &ConfigUpdateThread, NULL);
 
   HYPERPLATFORM_LOG_INFO("The VMM has been installed.");
 

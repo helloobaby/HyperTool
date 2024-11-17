@@ -13,11 +13,6 @@ extern LARGE_INTEGER MmOneSecond;
 extern LARGE_INTEGER MmHalfSecond;
 extern LARGE_INTEGER Mm30Milliseconds;
 tagGlobalConfig GlobalConfig;
-ULONGLONG Config_timestamp;
-
-// 如果这个列表不为空的话,所有的API记录和Syscall这种能绑定到进程(路径)的都会走一遍这个过滤
-// 过滤算法其实就是最简单的类似strstr,暂时不考虑正则表达式
-std::vector<std::string> TraceProcessPathList;
 
 void ConfigUpdateThread(
     PVOID StartContext
@@ -30,8 +25,8 @@ void ConfigUpdateThread(
             PsTerminateSystemThread(STATUS_SUCCESS);
         }
 
-        // 每30ms更新一次Config
-        KeDelayExecutionThread(KernelMode, false, &Mm30Milliseconds);
+        // 每1s更新一次Config
+        KeDelayExecutionThread(KernelMode, false, &MmOneSecond);
         {
             HANDLE handle = NULL;
             void* buffer = NULL;
@@ -59,17 +54,6 @@ void ConfigUpdateThread(
                             root = cJSON_Parse((char*)buffer);
                             if (root) {
 
-                                // 还是得手动触发式更新规则,实时自动更新的话很多地方设计起来很麻烦
-                                cJSON* timestamp = cJSON_GetObjectItem(root, "timestamp");
-                                if (timestamp == NULL || !cJSON_IsNumber(timestamp)) {
-                                    HYPERPLATFORM_LOG_ERROR("timestamp == NULL || !cJSON_IsNumber(timestamp)");
-                                    continue;
-                                }
-                                if (timestamp->valueulong != Config_timestamp) {
-
-                                    HYPERPLATFORM_LOG_INFO("Detect Config_timestamp change , UpdateConfig");
-                                    Config_timestamp = timestamp->valueulong;
-
                                     // 解析hooks
                                     cJSON* hooks = cJSON_GetObjectItem(root, "hooks");
                                     if (hooks == NULL || !cJSON_IsObject(hooks)) {
@@ -94,24 +78,16 @@ void ConfigUpdateThread(
                                     }
 
                                     // 解析path
-                                    cJSON* path_array = cJSON_GetObjectItem(root, "path");
-                                    if (path_array == NULL || !cJSON_IsArray(path_array)) {
-                                        HYPERPLATFORM_LOG_INFO("path_array == NULL || !cJSON_IsArray(path_array)");
+                                    cJSON* path = cJSON_GetObjectItem(root, "path");
+                                    if (path == NULL || !cJSON_IsString(path)) {
+                                        HYPERPLATFORM_LOG_INFO("path == NULL || !cJSON_IsString(path)");
                                         continue;
                                     }
 
-                                    int path_count = cJSON_GetArraySize(path_array);
+                                    GlobalConfig.path = path->valuestring;
+                                    
 
-                                    // 先清空,类似clear()
-                                    TraceProcessPathList.erase(TraceProcessPathList.begin(), TraceProcessPathList.end());
-                                    for (int i = 0; i < path_count; i++) {
-                                        cJSON* path_item = cJSON_GetArrayItem(path_array, i);
-                                        if (cJSON_IsString(path_item) && path_item->valuestring != NULL) {
-                                            HYPERPLATFORM_LOG_INFO("TraceProcessPathList Push Path %s", path_item->valuestring);
-                                            TraceProcessPathList.push_back(path_item->valuestring);
-                                        }
-                                    }
-                                }
+                                
                             }
                             else {
                                 HYPERPLATFORM_LOG_ERROR("cJSON_Parse fail");
