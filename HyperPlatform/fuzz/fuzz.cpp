@@ -110,7 +110,7 @@ namespace fuzz{
 
 	void FuzzInit() {
 		ExInitializeFastMutex(&RepeatMsgCacheLock);
-		AddServiceHook(UtilGetSystemProcAddress(L"NtDeviceIoControlFile"), DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile, "NtDeviceIoControlFile");
+		//AddServiceHook(UtilGetSystemProcAddress(L"NtDeviceIoControlFile"), DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile, "NtDeviceIoControlFile");
 	}
 
 }

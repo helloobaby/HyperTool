@@ -67,11 +67,11 @@ void ConfigUpdateThread(
                                     if (log != NULL && cJSON_IsString(log)) {
                                         if (!_strcmpi_a("true", log->valuestring)) {
                                             GlobalConfig.hooks_log = true;
-                                            HYPERPLATFORM_LOG_INFO("GlobalConfig.hooks_log = true");
+                                            HYPERPLATFORM_LOG_DEBUG("GlobalConfig.hooks_log = true");
                                         }
                                         else if (!_strcmpi_a("false", log->valuestring)) {
                                             GlobalConfig.hooks_log = false;
-                                            HYPERPLATFORM_LOG_INFO("GlobalConfig.hooks_log = false");
+                                            HYPERPLATFORM_LOG_DEBUG("GlobalConfig.hooks_log = false");
                                         }
                                     }
                                     else {
@@ -85,7 +85,7 @@ void ConfigUpdateThread(
                                         continue;
                                     }
                                     else {
-                                        HYPERPLATFORM_LOG_INFO("GlobalConfig.path %s", GlobalConfig.path.c_str());
+                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.path %s", GlobalConfig.path.c_str());
                                         GlobalConfig.path = path->valuestring;
                                     }
 
