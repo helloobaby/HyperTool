@@ -40,6 +40,7 @@ namespace std
 			delete[] m_src;
 			m_src = new char[str.size()];
 			strcpy(m_src, str.c_str());
+			m_size = strlen(str.c_str());
 			return *this;
 		}
 

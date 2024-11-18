@@ -167,4 +167,6 @@ switch (what)
 return 0;
 }
 
+int _fltused = 0;
+
 /* End of pcre_config.c */

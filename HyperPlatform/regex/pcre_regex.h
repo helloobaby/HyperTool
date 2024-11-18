@@ -2,8 +2,6 @@
 #include "pcre.h"
 #include "../log.h"
 
-extern "C" int _fltused = 0;
-
 #define OVECCOUNT	30 /* should be a multiple of 3 */
 #define OVECCOUNTJIT 64 /*for jit*/
 #define EBUFLEN		128
@@ -25,7 +23,7 @@ extern "C" int _fltused = 0;
 * @return  pcre_exec接口的返回值 >0就是匹配到了
 */ 
 
-int _ismatch( char* src, char* pattern)
+inline int _ismatch( char* src, char* pattern)
 {   
 	pcre  *re;
 	const char *error;

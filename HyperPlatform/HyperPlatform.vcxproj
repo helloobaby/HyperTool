@@ -173,6 +173,7 @@
     <ClInclude Include="global_object.h" />
     <ClInclude Include="hotplug_callback.h" />
     <ClInclude Include="ia32_type.h" />
+    <ClInclude Include="include\algorithm.hpp" />
     <ClInclude Include="include\exclusivity.h" />
     <ClInclude Include="include\global.hpp" />
     <ClInclude Include="include\handle.h" />

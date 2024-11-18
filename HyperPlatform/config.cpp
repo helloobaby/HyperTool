@@ -46,6 +46,7 @@ void ConfigUpdateThread(
                 if (fileSize != 0)
                 {
                     buffer = ExAllocatePoolWithTag(NonPagedPool, fileSize + 1, 'fnoc');
+                    NT_ASSERT(buffer);
                     memset(buffer, 0, fileSize + 1);
                     if (buffer != NULL)
                     {
@@ -83,9 +84,10 @@ void ConfigUpdateThread(
                                         HYPERPLATFORM_LOG_INFO("path == NULL || !cJSON_IsString(path)");
                                         continue;
                                     }
-
-                                    GlobalConfig.path = path->valuestring;
-                                    
+                                    else {
+                                        HYPERPLATFORM_LOG_INFO("GlobalConfig.path %s", GlobalConfig.path.c_str());
+                                        GlobalConfig.path = path->valuestring;
+                                    }
 
                                 
                             }
