@@ -410,30 +410,18 @@ _Use_decl_annotations_ static memory_type EptpGetMemoryType(
 }
 
 // Builds EPT, allocates pre-allocated entires, initializes and returns EptData
-//每个核心都要一次Ept Init?
+// 每个核心都要一次Ept Init?
 _Use_decl_annotations_ EptData *EptInitialization() {
     PAGED_CODE()
 
   static const auto kEptPageWalkLevel = 4ul;
 
-  //
-  //这个和下面的#if同时开同时关，如果开了的话代表每个processor的eptdata都相同了，卸载的时候的代码也要改
-  //不改卸载代码的话，加载没问题，卸载蓝屏。
-  //
-#if 0 
-  static 
-#endif
   const auto ept_data = static_cast<EptData *>(ExAllocatePoolWithTag(
       NonPagedPool, sizeof(EptData), kHyperPlatformCommonPoolTag));
   if (!ept_data) {
       return nullptr;
   }
-#if 0
-  const auto ProcessNumber = KeGetCurrentProcessorNumber();
-  Log("Ept Init Current Processor Number %x\n", ProcessNumber);
-  if (ProcessNumber > 0)
-      return ept_data;
-#endif
+
   RtlZeroMemory(ept_data, sizeof(EptData));
 
   // Allocate EPT_PML4 and initialize EptPointer
@@ -582,7 +570,7 @@ _Use_decl_annotations_ static EptCommonEntry *EptpConstructTables(
 }
 
 // Return a new EPT entry either by creating new one or from pre-allocated ones
-//原作者用这个备用Ept Entry估计是为了防止在vm-exit的时候分配内存
+// 原作者用这个备用Ept Entry估计是为了防止在vm-exit的时候分配内存
 _Use_decl_annotations_ static EptCommonEntry *EptpAllocateEptEntry(
     EptData *ept_data) {
   if (ept_data) {
@@ -673,12 +661,11 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
           ? UtilVmRead(VmcsField::kGuestLinearAddress)
           : 0);
 
-  bool is_handled = false;
-
   //
-  //对我们需要隐藏的内存做特殊处理
+  // 对我们需要隐藏的内存做特殊处理
   //
 
+  // SystemCall
   if (fault_pa >= SystemCallFake.fp.GuestPA.QuadPart && 
       fault_pa <= SystemCallFake.fp.GuestPA.QuadPart + PAGE_SIZE)
   {
@@ -704,6 +691,7 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
       return;
   }
 
+  // Function Hooks
   for (auto& service_hook : vServcieHook)
   {
       if (fault_pa >= service_hook.fp.GuestPA.QuadPart &&
@@ -727,15 +715,9 @@ _Use_decl_annotations_ void EptHandleEptViolation(EptData *ept_data) {
           else
               HYPERPLATFORM_COMMON_DBG_BREAK();
 
-          is_handled = true;
+          UtilInveptGlobal();
+          return;
       }
-  }
-
-  //是我们的ept hook导致的vm-exit吗
-  if (is_handled)
-  {
-      UtilInveptGlobal();
-      return;
   }
 
   if (exit_qualification.fields.ept_readable ||

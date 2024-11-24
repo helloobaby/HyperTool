@@ -82,6 +82,9 @@
     <DriverSign>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/fd sha256 %(AdditionalOptions)</AdditionalOptions>
     </DriverSign>
+    <DriverSign>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">/fd sha256 %(AdditionalOptions)</AdditionalOptions>
+    </DriverSign>
   </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />

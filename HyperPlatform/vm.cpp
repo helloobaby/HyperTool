@@ -352,14 +352,6 @@ _Use_decl_annotations_ static NTSTATUS VmpStartVm(void *context) {
                          KeGetCurrentProcessorNumberEx(nullptr));
   const auto ok = AsmInitializeVm(VmpInitializeVm, context);
 
-  //
-  //因为我们在vmm.cpp里把相应的HyperPlatform存在标识抹去了，这里就不能作为判断依据了
-  //
-  #if 0
-  NT_ASSERT(VmpIsHyperPlatformInstalled() == ok);
-  #endif
-
-
   if (!ok) {
     return STATUS_UNSUCCESSFUL;
   }
@@ -374,22 +366,23 @@ _Use_decl_annotations_ static void VmpInitializeVm(
     void *context) {
   PAGED_CODE()
 
-    //这个context就是SharedProcessorData，在VmInitialization中已经初始化好
+  // 这个context就是SharedProcessorData，在VmInitialization中已经初始化好
   const auto shared_data = static_cast<SharedProcessorData *>(context);
   if (!shared_data) {
     return;
   }
 
-  //分配每个核心专属的processor_data
+  // 分配每个核心专属的processor_data
   // Allocate related structures
   const auto processor_data =
       static_cast<ProcessorData *>(ExAllocatePoolWithTag(
           NonPagedPool, sizeof(ProcessorData), kHyperPlatformCommonPoolTag));
   if (!processor_data) {
+    HYPERPLATFORM_LOG_ERROR("Allocate processor_data fail");
     return;
   }
   RtlZeroMemory(processor_data, sizeof(ProcessorData));
-  //把shared_data赋给每个核心专属的processor_data
+  // 把shared_data赋给每个核心专属的processor_data
   processor_data->shared_data = shared_data;
   InterlockedIncrement(&processor_data->shared_data->reference_count);
 
@@ -669,9 +662,10 @@ _Use_decl_annotations_ static bool VmpSetupVmcs(
 
   VmxSecondaryProcessorBasedControls vm_procctl2_requested = {};
   vm_procctl2_requested.fields.enable_ept = true;                // 不开启ept可以更好的复现一些问题
-  // TODO : 这地方的VM-EXIT有BUG,不要开
+  // TODO : 这地方的VM-EXIT Handler有BUG,不要开
   // 目前发现与火绒驱动不兼容
   vm_procctl2_requested.fields.descriptor_table_exiting = false; 
+
   vm_procctl2_requested.fields.enable_rdtscp = true; 
   vm_procctl2_requested.fields.enable_vpid = true; 
   vm_procctl2_requested.fields.enable_invpcid = true;
@@ -853,6 +847,9 @@ _Use_decl_annotations_ static bool VmpSetupVmcs(
   // clang-format on
 
   const auto vmx_status = static_cast<VmxStatus>(error);
+  if (vmx_status != VmxStatus::kOk) {
+      HYPERPLATFORM_LOG_ERROR("VmpSetupVmcs error %d", error);
+  }
   return vmx_status == VmxStatus::kOk;
 }
 
