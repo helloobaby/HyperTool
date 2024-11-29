@@ -37,6 +37,23 @@ static_assert(sizeof(PhysicalMemoryRun) == 0x10, "Size check");
 static_assert(sizeof(PhysicalMemoryRun) == 0x8, "Size check");
 #endif
 
+
+typedef struct _SYSTEM_HANDLE_INFORMATION
+{
+    ULONG ProcessId;
+    UCHAR ObjectTypeNumber;
+    UCHAR Flags;
+    USHORT Handle;
+    PVOID Object;
+    ACCESS_MASK GrantedAccess;
+}SYSTEM_HANDLE_INFORMATION, * PSYSTEM_HANDLE_INFORMATION;
+
+typedef struct _SYSTEM_HANDLE_INFORMATION_EX
+{
+    ULONG NumberOfHandles;
+    SYSTEM_HANDLE_INFORMATION Information[1];
+}SYSTEM_HANDLE_INFORMATION_EX, * PSYSTEM_HANDLE_INFORMATION_EX;
+
 /// Represents a physical memory ranges of the system
 struct PhysicalMemoryDescriptor {
   PFN_COUNT number_of_runs;    //!< A number of PhysicalMemoryDescriptor::run
@@ -348,5 +365,13 @@ template <typename Callable>
 make_scope_exit(Callable&& F) {
     return detail::scope_exit<Callable>(F);
 }
+
+PVOID GetTableInfo(ULONG TableType);
+
+// »ñµÃcsrss.exeµÄPid
+HANDLE GetCrsPid();
+
+NTSTATUS BBScanSection(IN PCCHAR section, IN PCUCHAR pattern, IN UCHAR wildcard, IN ULONG_PTR len, OUT PVOID* ppFound);
+NTSTATUS BBSearchPattern(IN PCUCHAR pattern, IN UCHAR wildcard, IN ULONG_PTR len, IN const VOID* base, IN ULONG_PTR size, OUT PVOID* ppFound);
 
 #endif  // HYPERPLATFORM_UTIL_H_

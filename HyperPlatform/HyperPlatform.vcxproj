@@ -90,6 +90,7 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="anti_scrshoot.cpp" />
     <ClCompile Include="config.cpp" />
     <ClCompile Include="device.cpp" />
     <ClCompile Include="driver.cpp" />
@@ -158,6 +159,8 @@
     <ClCompile Include="regex\pcre_version.c" />
     <ClCompile Include="regex\pcre_xclass.c" />
     <ClCompile Include="service_hook.cpp" />
+    <ClCompile Include="ssdt.cpp" />
+    <ClCompile Include="sssdt.cpp" />
     <ClCompile Include="systemcall.cpp" />
     <ClCompile Include="util.cpp" />
     <ClCompile Include="vm.cpp" />

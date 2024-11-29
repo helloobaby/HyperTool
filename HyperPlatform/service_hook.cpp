@@ -13,6 +13,7 @@
 #include <ntstrsafe.h>
 #include <intrin.h>
 #include <cassert>
+#include "systemcall.h"
 
 extern "C"
 {
@@ -47,18 +48,50 @@ void ServiceHook::Construct()
 
 	HYPERPLATFORM_LOG_INFO("ServiceHook::Construct %s", this->funcName.c_str());
 
+	//
+	if (this->fp.GuestVA > (PVOID)Win32kfullBase && this->fp.GuestVA < (PVOID)(Win32kfullBase + Win32kfullSize))
+	{
+		HYPERPLATFORM_LOG_INFO("this->isWin32Hook = true");
+		this->isWin32Hook = true;
+	}
+
+	// 如果是win32 hook,要切换session
+	PEPROCESS Csrss = NULL;
+	KAPC_STATE pRkapcState = { 0x00 };
+	if (this->isWin32Hook) {
+		NTSTATUS Status;
+		Status = PsLookupProcessByProcessId(g_CsrssPid, &Csrss);
+		if (NT_SUCCESS(Status)) {
+			if (NT_SUCCESS(MmAttachSession(Csrss, &pRkapcState))) {
+			}
+			else {
+				HYPERPLATFORM_LOG_INFO("Attach Session fail");
+				ObDereferenceObject(Csrss);
+				return;
+			}
+		}
+		else {
+			HYPERPLATFORM_LOG_INFO("PsLookupProcessByProcessId Csrss fail");
+			return;
+		}
+	}
+
 	// 获得指定函数所在页的开始处
 	auto tmp = (PVOID)(((ULONG_PTR)(this->fp).GuestVA >> 12) << 12);
 	
 	// GuestPA为GuestVA这个页面起始的物理地址
 	// GuestVA必须初始化后不能改变
 	//
-	// 如果pte.vaild为0，MmGetPhysicalAddress返回0
+	// 如果pte.vaild为0，MmGetPhysicalAddress返回0 , 因此前面就要切换session
 	//
 	this->fp.GuestPA = MmGetPhysicalAddress(tmp);
 	if (!this->fp.GuestPA.QuadPart)
 	{
 		HYPERPLATFORM_LOG_WARN("ServiceHook::Construct fail , Address %p is invalid", tmp);
+		if (this->isWin32Hook)
+		{
+			MmDetachSession(Csrss, &pRkapcState);
+		}
 		return;
 	}
 	this->fp.PageContent = ExAllocatePoolWithQuotaTag(NonPagedPool, PAGE_SIZE,'zxc');
@@ -117,6 +150,11 @@ void ServiceHook::Construct()
 	WPONx64(irql);
 
 	ExclReleaseExclusivity(exclusivity);
+
+	if (this->isWin32Hook)
+	{
+		MmDetachSession(Csrss, &pRkapcState);
+	}
 }
 
 void ServiceHook::Destruct()
@@ -125,18 +163,39 @@ void ServiceHook::Destruct()
 	//NTSTATUS Status = HkRestoreFunction((this->fp).GuestVA, this->TrampolineFunc);
 
 	if (KeGetCurrentIrql() >= DISPATCH_LEVEL)
-		KeLowerIrql(APC_LEVEL);
+	{
+		HYPERPLATFORM_LOG_ERROR("IRQL is too high");
+		return;
+	}
 
-	//
-	// 这部分代码仅仅是让分页的内存换进来，下面禁用线程切换就换不了了
-	//
-	char tmp[1];
-	memcpy(tmp, this->fp.GuestVA, 1);
+	PEPROCESS Csrss = NULL;
+	KAPC_STATE pRkapcState = { 0x00 };
+	if (this->isWin32Hook) {
+		NTSTATUS Status;
+		Status = PsLookupProcessByProcessId(g_CsrssPid, &Csrss);
+		if (NT_SUCCESS(Status)) {
+			if (NT_SUCCESS(MmAttachSession(Csrss, &pRkapcState))) {
+			}
+			else {
+				HYPERPLATFORM_LOG_INFO("Attach Session fail");
+				ObDereferenceObject(Csrss);
+				return;
+			}
+		}
+		else {
+			HYPERPLATFORM_LOG_INFO("PsLookupProcessByProcessId Csrss fail");
+			return;
+		}
+	}
 
-	// 没换进来
+	// 这个页面地址不合法
 	if (!MmIsAddressValid(this->fp.GuestVA))
 	{
-		HYPERPLATFORM_LOG_WARN("GuestVA %llx is invalid", this->fp.GuestVA);
+		HYPERPLATFORM_LOG_ERROR("GuestVA %llx is invalid", this->fp.GuestVA);
+		if (this->isWin32Hook)
+		{
+			MmDetachSession(Csrss, &pRkapcState);
+		}
 		return;
 	}
 
@@ -148,13 +207,15 @@ void ServiceHook::Destruct()
 
 	//
 	auto Exclu = ExclGainExclusivity();
-
 	auto irql = WPOFFx64();
 	memcpy(this->fp.GuestVA, *(this->TrampolineFunc), this->HookCodeLen);
 	WPONx64(irql);
 	ExclReleaseExclusivity(Exclu);
-
 	ExFreePool(*(this->TrampolineFunc));
+	if (this->isWin32Hook)
+	{
+		MmDetachSession(Csrss, &pRkapcState);
+	}
 }
 
 //
@@ -186,6 +247,7 @@ void RemoveServiceHook()
 	HYPERPLATFORM_LOG_INFO("RemoveServiceHook enter");
 	for (auto& hook : vServcieHook)
 	{
+		HYPERPLATFORM_LOG_INFO("unload %s", hook.funcName.c_str());
 		hook.Destruct();
 		HYPERPLATFORM_LOG_INFO("unload hook func %s success", hook.funcName.c_str());
 	}

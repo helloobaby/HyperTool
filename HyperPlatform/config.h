@@ -17,7 +17,8 @@ struct tagGlobalConfig {
 	tagGlobalConfig() = default;
 	~tagGlobalConfig() = default;
 	bool hooks_log;
-	std::string path;
+	std::string path;     // hook的过滤路径
+	std::string capture;  // 截屏的白名单
 };
 
 HANDLE OpenFile(wchar_t* filepath);

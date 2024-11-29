@@ -27,6 +27,7 @@
 #include "minirtl/_filename.h"
 #include "regex/pcre_regex.h"
 #include "fuzz/fuzz.h"
+#include "anti_scrshoot.h"
 
 extern "C"
 {
@@ -43,6 +44,7 @@ extern char SystemCallRecoverCode[15];
 extern bool is_cet_enable;
 
 extern LARGE_INTEGER MmHalfSecond;
+extern LARGE_INTEGER MmOneSecond;
  
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -149,7 +151,18 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
 
   DoSystemCallHook();
 
-  fuzz::FuzzInit();
+  //if (!fuzz::FuzzInit())
+  //{
+  //    LogTermination();
+  //    return STATUS_UNSUCCESSFUL;
+  //}
+
+  if (!anti::AntiCapturesInit())
+  {
+      LogTermination();
+      return STATUS_UNSUCCESSFUL;
+  }
+
 
   // Initialize perf functions
   status = PerfInitialization();
@@ -197,8 +210,9 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   PsCreateSystemThread(&hConfigThread, 0, NULL, NULL, NULL, &ConfigUpdateThread, NULL);
 
   // 从这里返回,以关闭虚拟化
-  // 有些BUG直接触发三重错误,先从这里返回判断是否是虚拟化代码导致的
-  //return STATUS_SUCCESS;
+  // 有些内存访问错误第一次异常exit,然后又异常,直接触发多重错误,不好排查了
+  // 因此先从这里返回判断是否是虚拟化代码导致的
+  return STATUS_SUCCESS;
 
   // Virtualize all processors
   status = VmInitialization();
@@ -233,7 +247,7 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
 
   // 卸载日志更新线程
   ConfigExitVar = true;
-  KeDelayExecutionThread(KernelMode, false, &MmHalfSecond);
+  KeDelayExecutionThread(KernelMode, false, &MmOneSecond);
 
   VmTermination();
   HotplugCallbackTermination();

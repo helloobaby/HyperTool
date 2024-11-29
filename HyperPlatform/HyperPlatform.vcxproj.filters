@@ -251,6 +251,15 @@
     <ClCompile Include="regex\pcre_chartables.c">
       <Filter>regex</Filter>
     </ClCompile>
+    <ClCompile Include="ssdt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="sssdt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="anti_scrshoot.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asm.h">

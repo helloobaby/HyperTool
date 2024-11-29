@@ -3,7 +3,9 @@ Copyright (c) 2021-x	 https://github.com/helloobaby/KernelModeSTL
 */
 
 #pragma once
-#include"global.hpp"
+#include "global.hpp"
+#include "string.hpp"
+#include <initializer_list>
 
 /***
 
@@ -28,6 +30,11 @@ namespace std {
 		using reference = value_type&;
 
 		vector() : start(0), finish(0), end_of_storage(0) {}
+		vector(std::initializer_list<std::string> list) : start(0), finish(0), end_of_storage(0) {
+			for (auto i : list) {
+				this->push_back(i);
+			}
+		}
 		~vector();
 
 		iterator begin()const { return start; }

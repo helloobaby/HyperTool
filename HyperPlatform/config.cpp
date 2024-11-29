@@ -89,6 +89,16 @@ void ConfigUpdateThread(
                                         GlobalConfig.path = path->valuestring;
                                     }
 
+                                    cJSON* capture = cJSON_GetObjectItem(root, "capture");
+                                    if (capture == NULL || !cJSON_IsString(capture)) {
+                                        HYPERPLATFORM_LOG_INFO("capture == NULL || !cJSON_IsString(capture)");
+                                        continue;
+                                    }
+                                    else {
+                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.capture %s", GlobalConfig.capture.c_str());
+                                        GlobalConfig.capture = capture->valuestring;
+                                    }
+
                                 
                             }
                             else {

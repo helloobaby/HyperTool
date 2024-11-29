@@ -183,22 +183,4 @@ NTSTATUS LogpPrint(_In_ ULONG level, _In_z_ const char *function_name,
 //
 
 }  // extern "C"
-
-#if 0
-inline ULONG Log(const char *format, ...) {
-  char buffer[256];
-
-  va_list ap;
-  __va_start(&ap, format);
-  vsprintf(buffer, format, ap);
-
-  return DbgPrintEx(DPFLTR_DEFAULT_ID, DPFLTR_ERROR_LEVEL, buffer);
-}
-#endif
-
-
-
-
-
-
 #endif  // HYPERPLATFORM_LOG_H_

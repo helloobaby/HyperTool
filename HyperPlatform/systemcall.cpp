@@ -2,6 +2,12 @@
 #include "ia32_type.h"
 #include "systemcall.h"
 #include "include/write_protect.h"
+#include "sssdt.h"
+#include "ssdt.h"
+#include "util.h"
+#include "include/vector.hpp"
+#include "include/string.hpp"
+
 
 extern "C"
 {
@@ -108,7 +114,7 @@ NTSTATUS InitSystemVar()
 
 	// Find KiSystemServiceStart in .text
 	const unsigned char KiSystemServiceStartPattern[] = { 0x8B, 0xF8, 0xC1, 0xEF, 0x07, 0x83, 0xE7, 0x20, 0x25, 0xFF, 0x0F, 0x00, 0x00 };
-	const ULONG signatureSize = sizeof(KiSystemServiceStartPattern);
+	constexpr const ULONG signatureSize = sizeof(KiSystemServiceStartPattern);
 	bool found = false;
 	ULONG KiSSSOffset;
 	for (KiSSSOffset = 0; KiSSSOffset < textSection->Misc.VirtualSize - signatureSize; KiSSSOffset++)
@@ -121,7 +127,7 @@ NTSTATUS InitSystemVar()
 	}
 	if (!found) {
 		HYPERPLATFORM_LOG_ERROR("Cant find KiSystemServiceStart");
-		return STATUS_SUCCESS;
+		return STATUS_UNSUCCESSFUL;
 	}
 	/*
 nt!KiSystemServiceStart:
@@ -134,7 +140,86 @@ fffff805`5cbc50ff 25ff0f0000      and     eax,0FFFh
 	KiSystemServiceStart = (ULONG_PTR)((unsigned char*)KernelBase + textSection->VirtualAddress + KiSSSOffset - 7);
 	HYPERPLATFORM_LOG_INFO("KiSystemServiceStart %llx", KiSystemServiceStart);
 
+	// 定位MmAccessFault
+	const std::vector<std::string> MmAccessFaultPattern = { 
+		// Windows10 17763 
+		"\x40\x55\x53\x56\x57\x41\x54\x41\x56\x48\x8D\x6C\x24\xcc\x48\x81\xEC\xcc\xcc\xcc\xcc\x48\x8B\x05\xcc\xcc\xcc\xcc\x48\x33\xC4\x48\x89\x45\xcc\x45\x33\xE4\x41\x0F\xBE\xF0",
+		// Windows11 22621
+		"\x40\x55\x53\x56\x57\x41\x56\x48\x8D\x6C\x24\xcc\x48\x81\xEC\xcc\xcc\xcc\xcc\x48\x8B\x05\xcc\xcc\xcc\xcc\x48\x33\xC4\x48\x89\x45\xcc\x0F\xB6\xC1" };
+
+	for (auto Pattern : MmAccessFaultPattern) {
+		BBScanSection((char*)".text", (unsigned char*)(Pattern.c_str()), '\xcc', Pattern.size(), (PVOID*)&MmAccessFault);
+	}
+	if (MmAccessFault) {
+		HYPERPLATFORM_LOG_INFO("MmAccessFault %llx", MmAccessFault);
+	}
+	else {
+		HYPERPLATFORM_LOG_ERROR("Cant Find MmAccessFault");
+		return STATUS_UNSUCCESSFUL;
+	}
+
+
+	const std::vector<std::string> MmAttachSessionPattern = {
+		"\x4C\x8B\xDC\x49\x89\x5B\xcc\x49\x89\x6B\xcc\x49\x89\x73\xcc\x57\x41\x56\x41\x57\x48\x83\xEC\xcc\x65\x48\x8B\x04\x25\xcc\xcc\xcc\xcc\x4C\x8B\xFA",
+		"\x4C\x8B\xDC\x49\x89\x5B\xcc\x49\x89\x6B\xcc\x49\x89\x73\xcc\x57\x41\x56\x41\x57\x48\x83\xEC\xcc\x48\x8B\xB9"
+
+	};
+
+	for (auto Pattern : MmAttachSessionPattern) {
+		BBScanSection((char*)".text", (unsigned char*)(Pattern.c_str()), '\xcc', Pattern.size(), (PVOID*)&MmAttachSession);
+	}
+	if (MmAttachSession) {
+		HYPERPLATFORM_LOG_INFO("MmAttachSession %llx", MmAttachSession);
+	}
+	else {
+		HYPERPLATFORM_LOG_ERROR("Cant Find MmAttachSession");
+		return STATUS_UNSUCCESSFUL;
+	}
+
+	const std::vector<std::string> MmDetachSessionPattern = {
+		"\x48\x89\x5C\x24\xcc\x48\x89\x74\x24\xcc\x57\x48\x83\xEC\xcc\x48\x8B\x99\xcc\xcc\xcc\xcc\x48\x8B\xF2\x48\x8D\x54\x24",
+		"\x4C\x8B\xDC\x49\x89\x5B\xcc\x49\x89\x73\xcc\x57\x48\x83\xEC\xcc\x48\x8B\x99\xcc\xcc\xcc\xcc\x0F\x57\xC0"
+	};
+	
+	for (auto Pattern : MmDetachSessionPattern) {
+		BBScanSection((char*)".text", (unsigned char*)(Pattern.c_str()), '\xcc', Pattern.size(), (PVOID*)&MmDetachSession);
+	}
+
+	if (MmDetachSession) {
+		HYPERPLATFORM_LOG_INFO("MmDetachSession %llx", MmDetachSession);
+	}
+	else {
+		HYPERPLATFORM_LOG_ERROR("Cant Find MmDetachSession");
+		return STATUS_UNSUCCESSFUL;
+	}
+
+
 	SystemCallFake.Construct();
+
+	if (!sssdt::GetKeServiceDescriptorTableShadow(&SSSDTAddress)) {
+		HYPERPLATFORM_LOG_ERROR("Cant Find SSSDT Address");
+		return STATUS_UNSUCCESSFUL;
+	}
+	else {
+		HYPERPLATFORM_LOG_INFO("SSSDT Address %llx", SSSDTAddress);
+	}
+
+	if (!ssdt::GetKeServiceDescriptorTable(&SSDTAddress)) {
+		HYPERPLATFORM_LOG_ERROR("Cant Find SSDT Address");
+		return STATUS_UNSUCCESSFUL;
+	}
+	else {
+		HYPERPLATFORM_LOG_INFO("SSDT Address %llx", SSDTAddress);
+	}
+
+	g_CsrssPid = GetCrsPid();
+	if (g_CsrssPid) {
+		HYPERPLATFORM_LOG_INFO("g_CsrssPid %d", g_CsrssPid);
+	}
+	else {
+		HYPERPLATFORM_LOG_ERROR("Cant Find csrss.exe");
+		return STATUS_UNSUCCESSFUL;
+	}
 
 	return STATUS_SUCCESS;
 }
@@ -174,26 +259,12 @@ fffff805`5cbc5119 7413            je      nt!KiSystemServiceRepeat+0x2a (fffff80
 	HYPERPLATFORM_LOG_INFO("DoSystemCallHook End");
 }
 
-//只用于SSDT，不适用于ShadowSSDT
-PVOID GetSSDTEntry(IN ULONG index)
-{
-	//PSYSTEM_SERVICE_DESCRIPTOR_TABLE pSSDT = aSYSTEM_SERVICE_DESCRIPTOR_TABLE;
-	//PVOID pBase = (PVOID)KernelBase;
-
-	//if (pSSDT && pBase)
-	//{
-	//	// Index range check 在shadowssdt里的话返回0
-	//	if (index > pSSDT->NumberOfServices)
-	//		return NULL;
-
-	//	return (PUCHAR)pSSDT->ServiceTableBase + (((PLONG)pSSDT->ServiceTableBase)[index] >> 4);
-	//}
-
-	return NULL;
-}
-
 void SystemCallHandler(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX)
 {
-	UNREFERENCED_PARAMETER(TrapFrame);
-	UNREFERENCED_PARAMETER(SSDT_INDEX);
+	
+	PVOID TargetFunction = ssdt::GetSSDTEntry(SSDT_INDEX);
+	if (TargetFunction == &NtCreateFile) {
+		DbgBreakPoint();
+	}
+	
 }

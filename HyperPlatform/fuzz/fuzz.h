@@ -1,6 +1,6 @@
 #pragma once
 namespace fuzz {
 
-	void FuzzInit();
+	bool FuzzInit();
 
 }
