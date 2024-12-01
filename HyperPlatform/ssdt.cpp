@@ -11,13 +11,6 @@ extern "C"
 namespace ssdt {
     bool GetKeServiceDescriptorTable(ULONG_PTR* SSDTAddress)
     {
-
-#ifndef _WIN64
-        //x86 code
-        UNICODE_STRING routineName;
-        RtlInitUnicodeString(&routineName, L"KeServiceDescriptorTable");
-        SSDT = (SSDTStruct*)MmGetSystemRoutineAddress(&routineName);
-#else
         //x64 code
         ULONG_PTR kernelBase = (ULONG_PTR)GetKernelBase();
         if (kernelBase == 0)
@@ -72,7 +65,7 @@ namespace ssdt {
 
         *SSDTAddress = (address + relativeOffset + 7);
 #endif
-    
+
         return true;
     }
 
@@ -80,6 +73,22 @@ namespace ssdt {
     {
         LONG* ServiceTable = ((SSDTStruct*)SSDTAddress)->pServiceTable;
         ULONG Offset = ServiceTable[TableIndex] >> 4;
-        return Offset + ServiceTable;
+        HYPERPLATFORM_LOG_DEBUG_SAFE("[SSDT] TableIndex %d Offset %x -> %llx", TableIndex, Offset, PVOID(Offset + (ULONG_PTR)ServiceTable));
+        return PVOID(Offset + (ULONG_PTR)ServiceTable);
     }
+
+    auto InitSymbolTable() {
+        static std::hashtable<PVOID, std::string> _symboltable;
+
+
+
+
+
+        return _symboltable;
+    }
+
+    std::string GetSymbolFromAddress(PVOID Address) {
+
+    }
+
 }

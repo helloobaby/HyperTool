@@ -409,6 +409,9 @@
     <ClInclude Include="include\algorithm.hpp">
       <Filter>STL</Filter>
     </ClInclude>
+    <ClInclude Include="include\hashtable.hpp">
+      <Filter>STL</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="HyperPlatform.ruleset" />

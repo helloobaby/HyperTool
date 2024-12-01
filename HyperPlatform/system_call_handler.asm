@@ -42,11 +42,12 @@ endm
 DetourKiSystemServiceStart proc
 	
 	;int 3
-	pop r15
+	pop r15			;»Ö¸´R15¼Ä´æÆ÷
 	SAVE
 	sub rsp,28h
 	mov rcx,rsp
 	add rcx,160;A0h
+	and eax, 0FFFh
 	mov edx,eax
 	call SystemCallHandler
 	add rsp,28h

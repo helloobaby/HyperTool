@@ -68,6 +68,8 @@ namespace anti {
 		for (auto scr : Full) {
 			if (cxDes == scr.x && cyDes == scr.y) {
 				HYPERPLATFORM_LOG_INFO("Intercept ScreenShoot");
+				// TODO : 自定义返回截图图片
+				//	      主要问题在于内核没有类似LoadImageA函数方便的从一个图片构造成HBITMAP
 				return false;
 			}
 		}

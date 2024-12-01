@@ -128,7 +128,7 @@ namespace std
 
 	/**
 	* 对POD类型包括string要偏特化，并合理设计hash function
-	* 字符串hash采用BKDRHash
+	* 字符串hash采用BKDRHash  https://blog.csdn.net/qq7366020/article/details/8730425
 	* 整数hash采用
 	*/
 	inline constexpr size_t _FNV_offset_basis = 2166136261U;

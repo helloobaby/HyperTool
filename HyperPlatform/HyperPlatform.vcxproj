@@ -183,6 +183,7 @@
     <ClInclude Include="include\exclusivity.h" />
     <ClInclude Include="include\global.hpp" />
     <ClInclude Include="include\handle.h" />
+    <ClInclude Include="include\hashtable.hpp" />
     <ClInclude Include="include\sect_attribs.h" />
     <ClInclude Include="include\string.hpp" />
     <ClInclude Include="include\type_traits.hpp" />

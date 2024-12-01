@@ -259,12 +259,12 @@ fffff805`5cbc5119 7413            je      nt!KiSystemServiceRepeat+0x2a (fffff80
 	HYPERPLATFORM_LOG_INFO("DoSystemCallHook End");
 }
 
-void SystemCallHandler(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX)
+void SystemCallHandler(KTRAP_FRAME* TrapFrame, 
+	ULONG SSDT_INDEX // KTHREAD->SystemCallNumber
+)
 {
-	
 	PVOID TargetFunction = ssdt::GetSSDTEntry(SSDT_INDEX);
-	if (TargetFunction == &NtCreateFile) {
-		DbgBreakPoint();
-	}
+
+
 	
 }

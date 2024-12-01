@@ -4,6 +4,6 @@
     {
         "log":"true"
     },
-    "syscall":""
-	"capture":"explorer",
+    "syscall":"",
+	"capture":"explorer"
 }
