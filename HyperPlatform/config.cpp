@@ -16,6 +16,20 @@ extern LARGE_INTEGER Mm30Milliseconds;
 // 其他extern的地方只读不写
 tagGlobalConfig GlobalConfig;
 
+cJSON* ExtractConfigValue(cJSON* root, const char* key) {
+    return cJSON_GetObjectItem(root, key);
+}
+
+template <typename... Keys>
+cJSON* ExtractConfigValue(cJSON* root, const char* first, Keys... args) {
+    cJSON* next = cJSON_GetObjectItem(root, first);
+    if (!next) {
+        HYPERPLATFORM_LOG_ERROR("ExtractConfigValue fail , root %s ,first %s",root,first);
+        return nullptr;
+    }
+    return ExtractConfigValue(next, args...);
+}
+
 void ConfigUpdateThread(
     PVOID StartContext
 ) {
@@ -33,6 +47,7 @@ void ConfigUpdateThread(
             HANDLE handle = NULL;
             void* buffer = NULL;
             cJSON* root = NULL;
+            cJSON* value = NULL;
             auto _ = make_scope_exit([&]() {  // RAII管理资源
                 if (handle != NULL)
                     CloseFile(handle);
@@ -56,52 +71,27 @@ void ConfigUpdateThread(
                         {
                             root = cJSON_Parse((char*)buffer);
                             if (root) {
+                                value = ExtractConfigValue(root, "anti_capture_white");
+                                if (value) {
+                                    HYPERPLATFORM_LOG_DEBUG("GlobalConfig.anti_capture_white %s", value->valuestring);
+                                    GlobalConfig.anti_capture_white = value->valuestring;
+                                }
 
-                                    cJSON* hooks = cJSON_GetObjectItem(root, "hooks");
-                                    if (hooks == NULL || !cJSON_IsObject(hooks)) {
-                                        HYPERPLATFORM_LOG_ERROR("json parse hooks fail");
-                                        continue;
-                                    }
-
-                                    cJSON* path = cJSON_GetObjectItem(hooks, "path");
-                                    if (path != NULL && cJSON_IsString(path)) {
-                                        GlobalConfig.APIHook.path = path->valuestring;
-                                    }
-                                    else {
-                                        HYPERPLATFORM_LOG_ERROR("json parse GlobalConfig.APIHook.path fail");
-                                    }
-
-                                    cJSON* capture = cJSON_GetObjectItem(root, "anti_capture_white");
-                                    if (capture == NULL || !cJSON_IsString(capture)) {
-                                        HYPERPLATFORM_LOG_INFO("json parse anti_capture_white fail");
-                                        continue;
-                                    }
-                                    else {
-                                        GlobalConfig.anti_capture_white = capture->valuestring;
-                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.anti_capture_white %s", GlobalConfig.anti_capture_white.c_str());
-                                    }
-
-                                    cJSON* syscall = cJSON_GetObjectItem(root, "syscall");
-                                    if (syscall == NULL || !cJSON_IsString(syscall)) {
-                                        HYPERPLATFORM_LOG_INFO("syscall == NULL || !cJSON_IsString(syscall)");
-                                        continue;
-                                    }
-                                    else {
-                                        GlobalConfig.syscall = syscall->valuestring;
-                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.syscall %s", GlobalConfig.syscall.c_str());
-                                    }
-
-                                    // 
-                                    cJSON* hexbytes = cJSON_GetObjectItem(root, "hexbytes");
-                                    if (hexbytes == NULL || !cJSON_IsNumber(hexbytes)) {
-                                        HYPERPLATFORM_LOG_INFO("hexbytes == NULL || !cJSON_IsNumber(hexbytes)");
-                                        continue;
-                                    }
-                                    else {
-                                        GlobalConfig.hexbytes = hexbytes->valueulong;
-                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.hexbytes %d", GlobalConfig.hexbytes);
-                                    }
-                                
+                                value = ExtractConfigValue(root, "hooks", "path");
+                                if (value) {
+                                    HYPERPLATFORM_LOG_DEBUG("GlobalConfig.APIHook.path %s", value->valuestring);
+                                    GlobalConfig.APIHook.path = value->valuestring;
+                                }
+                                value = ExtractConfigValue(root, "syscall", "path");
+                                if (value) {
+                                    HYPERPLATFORM_LOG_DEBUG("GlobalConfig.SyscallHook.path %s", value->valuestring);
+                                    GlobalConfig.SyscallHook.path = value->valuestring;
+                                }
+                                value = ExtractConfigValue(root, "syscall", "hexbytes");
+                                if (value) {
+                                    HYPERPLATFORM_LOG_DEBUG("GlobalConfig.SyscallHook.hexbytes %lld", value->valueulong);
+                                    GlobalConfig.SyscallHook.hexbytes = value->valueulong;
+                                }
                             }
                             else {
                                 HYPERPLATFORM_LOG_ERROR("cJSON_Parse fail");

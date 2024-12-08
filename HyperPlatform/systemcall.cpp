@@ -316,8 +316,8 @@ void SystemCallHandler(KTRAP_FRAME* TrapFrame)
 		InterlockedAdd(&SyscallRefCount, 1);
 		});
 
-	if (GlobalConfig.syscall.size()) {
-		if (_ismatch((char*)PsGetProcessImageFileName(IoGetCurrentProcess()), (char*)GlobalConfig.syscall.c_str()) > 0) {
+	if (GlobalConfig.SyscallHook.path.size()) {
+		if (_ismatch((char*)PsGetProcessImageFileName(IoGetCurrentProcess()), (char*)GlobalConfig.SyscallHook.path.c_str()) > 0) {
 			PETHREAD Thread = PsGetCurrentThread();
 			PULONG PSystemCallNumber = (PULONG)((char*)Thread + SystemCallNumberOffset);
 
@@ -357,18 +357,18 @@ void LogSysArgs(ULONG_PTR Arg, ULONG Count) {
 		HYPERPLATFORM_LOG_INFO_SAFE("arg%d -> %llx", Count, Arg);
 	}
 	else if (type == TypeUnknowPtr) {
-		char* print = (char*)ExAllocatePoolWithTag(NonPagedPool, GlobalConfig.hexbytes + 1, 'sys');
+		char* print = (char*)ExAllocatePoolWithTag(NonPagedPool, GlobalConfig.SyscallHook.hexbytes + 1, 'sys');
 #define MAX_PRINT 2048
 		int len = 0;
 		char print_hex[PAGE_SIZE] = {};
-		if (GlobalConfig.hexbytes > MAX_PRINT)
+		if (GlobalConfig.SyscallHook.hexbytes > MAX_PRINT)
 		{
 			return;
 		}
 		if (!print) {
 			return;
 		}
-		for (int i = 0; i < GlobalConfig.hexbytes; i++) {
+		for (int i = 0; i < GlobalConfig.SyscallHook.hexbytes; i++) {
 			unsigned c = *((unsigned char*)Arg + i);
 			if (IS_PRINTABLE(c)) {
 				print[i] = c;

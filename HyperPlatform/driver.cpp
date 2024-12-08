@@ -216,8 +216,11 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   PsCreateSystemThread(&hConfigThread, 0, NULL, NULL, NULL, &ConfigUpdateThread, NULL);
 
   // 从这里返回,以关闭虚拟化
-  // 有些内存访问错误第一次异常exit,然后又异常,直接触发多重错误,不好排查了
-  // 因此先从这里返回判断是否是虚拟化代码导致的
+  // 有些异常导致exit,然后又异常,直接触发多重错误,Dump都没机会生成
+  // 就算生成Dump里的错误也不会是初次造成异常的信息
+  // 因此关闭虚拟化可以降低找BUG的难度
+  
+  // TODO : 有个开发机的VmWare虚拟机开启虚拟化会卡死,物理机不会
   //return STATUS_SUCCESS;
 
   // Virtualize all processors
