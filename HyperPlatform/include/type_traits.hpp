@@ -224,6 +224,14 @@ namespace std
 	};
 
 	template<>
+	struct hash<void*>
+	{
+		size_t operator()(void* _Keyval)const noexcept {
+			return _Hash_representation(_Keyval == 0 ? 0 : _Keyval); // map -0 to 0
+		}
+	};
+
+	template<>
 	struct hash<char>
 	{
 		size_t operator()(char _Keyval)const noexcept {

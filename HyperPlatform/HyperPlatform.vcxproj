@@ -136,6 +136,7 @@
     <ClCompile Include="minirtl\_strncpy.c" />
     <ClCompile Include="minirtl\_strstr.c" />
     <ClCompile Include="minirtl\_strstri.c" />
+    <ClCompile Include="pe.cpp" />
     <ClCompile Include="performance.cpp" />
     <ClCompile Include="power_callback.cpp" />
     <ClCompile Include="regex\pcre_byte_order.c" />

@@ -7,7 +7,10 @@
 #include "util.h"
 #include "include/vector.hpp"
 #include "include/string.hpp"
-
+#include "config.h"
+#include "regex/pcre_regex.h"
+#include "asm.h"
+#include <stdio.h>
 
 extern "C"
 {
@@ -16,14 +19,18 @@ extern "C"
 	extern "C" void DetourKiSystemServiceStart();
 
 	NTSYSAPI PIMAGE_NT_HEADERS NTAPI RtlImageNtHeader(_In_ PVOID Base);
+
+	UCHAR* PsGetProcessImageFileName(PEPROCESS Process);
 }
 
 
 fpSystemCall SystemCallFake;
 
 char SystemCallRecoverCode[15] = {};
-NTSTATUS HookStatus = STATUS_UNSUCCESSFUL;
 
+LONG SyscallRefCount = 0;
+
+extern tagGlobalConfig GlobalConfig;
 
 //copy from blackbone
 PKLDR_DATA_TABLE_ENTRY GetSystemModule(IN PUNICODE_STRING pName, IN PVOID pAddress)
@@ -60,7 +67,7 @@ NTSTATUS InitSystemVar()
 		HYPERPLATFORM_LOG_ERROR("Cant get kernel base");
 		return STATUS_UNSUCCESSFUL;
 	}
-	HYPERPLATFORM_LOG_INFO("[KernelBase]%p", KernelBase);
+	HYPERPLATFORM_LOG_INFO("KernelBase %p", KernelBase);
 
 	UNICODE_STRING UnicodeBuf;
 	RtlInitUnicodeString(&UnicodeBuf, L"PsLoadedModuleList");
@@ -71,7 +78,7 @@ NTSTATUS InitSystemVar()
 	{
 		Win32kfullBase = (ULONG_PTR)tmpa->DllBase;
 		Win32kfullSize = (ULONG_PTR)tmpa->SizeOfImage;
-		HYPERPLATFORM_LOG_INFO("[WIN32kfullBase]%llx", Win32kfullBase);
+		HYPERPLATFORM_LOG_INFO("WIN32kfullBase %llx", Win32kfullBase);
 	}
 	else
 	{
@@ -83,7 +90,7 @@ NTSTATUS InitSystemVar()
 	if (tmpa)
 	{
 		Win32kbaseBase = (ULONG_PTR)tmpa->DllBase;
-		HYPERPLATFORM_LOG_INFO("[WIN32kbaseBase]%llx", Win32kbaseBase);
+		HYPERPLATFORM_LOG_INFO("WIN32kbaseBase %llx", Win32kbaseBase);
 	}
 	else
 	{
@@ -221,10 +228,13 @@ fffff805`5cbc50ff 25ff0f0000      and     eax,0FFFh
 		return STATUS_UNSUCCESSFUL;
 	}
 
+	ssdt::InitGetSymbolTable();
+
+
 	return STATUS_SUCCESS;
 }
 
-void DoSystemCallHook()
+void EnableSystemCallHook()
 {
 	/*
 nt!KiSystemServiceStart:
@@ -259,12 +269,124 @@ fffff805`5cbc5119 7413            je      nt!KiSystemServiceRepeat+0x2a (fffff80
 	HYPERPLATFORM_LOG_INFO("DoSystemCallHook End");
 }
 
-void SystemCallHandler(KTRAP_FRAME* TrapFrame, 
-	ULONG SSDT_INDEX // KTHREAD->SystemCallNumber
-)
-{
-	PVOID TargetFunction = ssdt::GetSSDTEntry(SSDT_INDEX);
 
-
+extern LARGE_INTEGER Mm30Milliseconds;
+void RemoveSyscallHook() {
+	HYPERPLATFORM_LOG_INFO_SAFE("RemoveSyscallHook enter");
+	while (SyscallRefCount > 0)
+	{
+		HYPERPLATFORM_LOG_INFO_SAFE("%s reference count is %d , delay 30ms", SyscallRefCount);
+		KeDelayExecutionThread(KernelMode, false, &Mm30Milliseconds);
+	}
 	
+	auto irql = WPOFFx64();
+	memcpy((PVOID)KiSystemServiceStart, SystemCallRecoverCode, sizeof(SystemCallRecoverCode));
+	WPONx64(irql);
+	if (SystemCallFake.fp.PageContent)
+		ExFreePool(SystemCallFake.fp.PageContent);
+
+}
+
+// https://j00ru.vexillium.org/syscalls/nt/64/
+void SystemCallHandler(KTRAP_FRAME* TrapFrame)
+{
+	// 内核模式的Zw*函数会设置KernelMode,然后走KiSystemServiceStart
+	// 这里监控syscall不需要内核的事件
+	if (ExGetPreviousMode() != UserMode)
+		return;
+
+	ULONG_PTR Rcx = TrapFrame->Rcx;
+	ULONG_PTR Rdx = TrapFrame->Rdx;
+
+	// syscall它其实不一定会保存r8\r9寄存器在TrapFrame里,取决于KTHREAD.DISPATCHER_HEADER.DebugActive
+	ULONG_PTR R8 = AsmReadR8();
+	ULONG_PTR R9 = AsmReadR9();
+
+	ULONG_PTR arg5 = *(ULONG_PTR*)(TrapFrame->Rsp + 0x28);
+	ULONG_PTR arg6 = *(ULONG_PTR*)(TrapFrame->Rsp + 0x30);
+	ULONG_PTR arg7 = *(ULONG_PTR*)(TrapFrame->Rsp + 0x38);
+	ULONG_PTR arg8 = *(ULONG_PTR*)(TrapFrame->Rsp + 0x40);
+	ULONG_PTR arg9 = *(ULONG_PTR*)(TrapFrame->Rsp + 0x48);
+	ULONG_PTR arg10 = *(ULONG_PTR*)(TrapFrame->Rsp + 0x50);
+	ULONG_PTR arg11 = *(ULONG_PTR*)(TrapFrame->Rsp + 0x58);
+
+
+	InterlockedAdd(&SyscallRefCount, -1);
+	auto _ = make_scope_exit([&]() {
+		InterlockedAdd(&SyscallRefCount, 1);
+		});
+
+	if (GlobalConfig.syscall.size()) {
+		if (_ismatch((char*)PsGetProcessImageFileName(IoGetCurrentProcess()), (char*)GlobalConfig.syscall.c_str()) > 0) {
+			PETHREAD Thread = PsGetCurrentThread();
+			PULONG PSystemCallNumber = (PULONG)((char*)Thread + SystemCallNumberOffset);
+
+			// SSDT
+			if (*PSystemCallNumber < 0x1000) {
+				PVOID TargetFunction = ssdt::GetSSDTEntry(*PSystemCallNumber);
+				UNREFERENCED_PARAMETER(TargetFunction);
+
+				std::string TargetFunctionName = ssdt::GetSymbolFromAddress(*PSystemCallNumber);
+
+				HYPERPLATFORM_LOG_INFO_SAFE("%s : ", TargetFunctionName.size() ? TargetFunctionName.c_str() : "-");
+
+				// 打印参数,一般来说NT函数最多的参数数量是11个
+				LogSysArgs(Rcx, 1);
+				LogSysArgs(Rdx, 2);
+				LogSysArgs(R8, 3);
+				LogSysArgs(R9, 4);
+				LogSysArgs(arg5, 5);
+				LogSysArgs(arg6, 6);
+				LogSysArgs(arg7, 7);
+			}
+
+
+
+			// SSSDT
+			else {
+
+			}
+
+		}
+	}
+}
+
+void LogSysArgs(ULONG_PTR Arg, ULONG Count) {
+	Type type = GuessAddressType(Arg);
+	if (type == TypeUnknow) {
+		HYPERPLATFORM_LOG_INFO_SAFE("arg%d -> %llx", Count, Arg);
+	}
+	else if (type == TypeUnknowPtr) {
+		char* print = (char*)ExAllocatePoolWithTag(NonPagedPool, GlobalConfig.hexbytes + 1, 'sys');
+#define MAX_PRINT 2048
+		int len = 0;
+		char print_hex[PAGE_SIZE] = {};
+		if (GlobalConfig.hexbytes > MAX_PRINT)
+		{
+			return;
+		}
+		if (!print) {
+			return;
+		}
+		for (int i = 0; i < GlobalConfig.hexbytes; i++) {
+			unsigned c = *((unsigned char*)Arg + i);
+			if (IS_PRINTABLE(c)) {
+				print[i] = c;
+			}
+			else {
+				print[i] = '.';
+			}
+			len += sprintf_s(print_hex + len, MAX_PRINT - len, "%02X ", c);
+		}
+
+		HYPERPLATFORM_LOG_INFO_SAFE("arg%d -> Ptr %p -> %s -> %s", Count, Arg, print, print_hex);
+
+		ExFreePoolWithTag(print, 'sys');
+	}
+	else if (type == TypePUNICODE_STRING) {
+		HYPERPLATFORM_LOG_INFO_SAFE("arg%d -> %wZ", Count, Arg);
+	}
+	else if (type == TypePOBJECT_ATTRIBUTES) {
+		HYPERPLATFORM_LOG_INFO_SAFE("arg%d -> %wZ", Count, ((POBJECT_ATTRIBUTES)Arg)->ObjectName);
+	}
 }

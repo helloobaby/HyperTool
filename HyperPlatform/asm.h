@@ -142,6 +142,10 @@ unsigned char __stdcall AsmInvvpid(
     _In_ InvVpidType invvpid_type,
     _In_ const InvVpidDescriptor *invvpid_descriptor);
 
+unsigned __int64 AsmReadRcx();
+unsigned __int64 AsmReadRdx();
+unsigned __int64 AsmReadR8();
+unsigned __int64 AsmReadR9();
 ////////////////////////////////////////////////////////////////////////////////
 //
 // variables

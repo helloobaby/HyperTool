@@ -409,6 +409,26 @@ errorWithCode:
     ret
 AsmInvvpid ENDP
 
+AsmReadR8 PROC
+    mov rax,r8
+    ret
+AsmReadR8 ENDP
+
+AsmReadR9 PROC
+    mov rax,r9
+    ret
+AsmReadR9 ENDP
+
+AsmReadRcx PROC
+    mov rax,rcx
+    ret
+AsmReadRcx ENDP
+
+AsmReadRdx PROC
+    mov rax,rdx
+    ret
+AsmReadRdx ENDP
+
 
 PURGE PUSHAQ
 PURGE POPAQ

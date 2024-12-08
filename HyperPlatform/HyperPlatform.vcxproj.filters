@@ -260,6 +260,9 @@
     <ClCompile Include="anti_scrshoot.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="pe.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="asm.h">

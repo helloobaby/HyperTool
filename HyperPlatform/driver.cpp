@@ -123,6 +123,9 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       return STATUS_CANCELLED;
   }
 
+  // 初始化运行库(调用类的默认构造函数等)
+  _CRT_INIT();
+
   HYPERPLATFORM_LOG_DEBUG("DriverEntry enter");
 
   ULONG64 cr4 = __readcr4();
@@ -139,7 +142,6 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       return STATUS_UNSUCCESSFUL;
   }
 
-  _CRT_INIT();
 
   status = HyperInitDeviceAll(driver_object);
 
@@ -149,13 +151,13 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
       return STATUS_UNSUCCESSFUL;
   }
 
-  DoSystemCallHook();
+  EnableSystemCallHook();
 
-  //if (!fuzz::FuzzInit())
-  //{
-  //    LogTermination();
-  //    return STATUS_UNSUCCESSFUL;
-  //}
+  if (!fuzz::FuzzInit())
+  {
+      LogTermination();
+      return STATUS_UNSUCCESSFUL;
+  }
 
   if (!anti::AntiCapturesInit())
   {
@@ -212,7 +214,7 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   // 从这里返回,以关闭虚拟化
   // 有些内存访问错误第一次异常exit,然后又异常,直接触发多重错误,不好排查了
   // 因此先从这里返回判断是否是虚拟化代码导致的
-  return STATUS_SUCCESS;
+  //return STATUS_SUCCESS;
 
   // Virtualize all processors
   status = VmInitialization();
@@ -254,16 +256,8 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
   PowerCallbackTermination();
   UtilTermination();
   PerfTermination();
-  //GlobalObjectTermination();
-
-  auto irql = WPOFFx64();
-  HYPERPLATFORM_LOG_INFO("Start Recovering syscalls");
-  memcpy((PVOID)KiSystemServiceStart, SystemCallRecoverCode, sizeof(SystemCallRecoverCode));
-  WPONx64(irql);
-  if (SystemCallFake.fp.PageContent)
-      ExFreePool(SystemCallFake.fp.PageContent);
-
-  RemoveServiceHook(); // 卸载hook
+  RemoveSyscallHook(); // 卸载syscall hook
+  RemoveServiceHook(); // 卸载api hook
   HyperDestroyDeviceAll(driver_object); // 卸载device
   LogTermination(); // 日志最后卸载
 
@@ -278,7 +272,8 @@ _Use_decl_annotations_ bool DriverpIsSuppoetedOS() {
   if (!NT_SUCCESS(status)) {
     return false;
   }
-  if (os_version.dwMajorVersion != 6 && os_version.dwMajorVersion != 10) {
+  // 支持win10 及以上,放弃win7的支持
+  if (os_version.dwMajorVersion != 10) {
     return false;
   }
   // 4-gigabyte tuning (4GT) should not be enabled

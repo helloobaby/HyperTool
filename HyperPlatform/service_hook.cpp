@@ -189,14 +189,10 @@ void ServiceHook::Destruct()
 	}
 
 	// 这个页面地址不合法
+	// 19:30:25.421	ERR	#0	  404	 5604	csrss.exe      	GuestVA ffff8ebb550e3260 is invalid
 	if (!MmIsAddressValid(this->fp.GuestVA))
 	{
-		HYPERPLATFORM_LOG_ERROR("GuestVA %llx is invalid", this->fp.GuestVA);
-		if (this->isWin32Hook)
-		{
-			MmDetachSession(Csrss, &pRkapcState);
-		}
-		return;
+		HYPERPLATFORM_LOG_WARN("GuestVA %llx is invalid", this->fp.GuestVA);
 	}
 
 	while (this->refCount > 0)

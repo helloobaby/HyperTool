@@ -19,6 +19,8 @@ struct tagGlobalConfig {
 	bool hooks_log;
 	std::string path;     // hook的过滤路径
 	std::string capture;  // 截屏的白名单
+	std::string syscall;
+	int hexbytes;
 };
 
 HANDLE OpenFile(wchar_t* filepath);

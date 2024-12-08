@@ -4,6 +4,7 @@
     {
         "log":"true"
     },
-    "syscall":"",
+    "syscall":"syscall",
+	"hexbytes":32,
 	"capture":"explorer"
 }

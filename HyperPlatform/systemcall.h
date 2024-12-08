@@ -53,6 +53,9 @@ NTSTATUS
 	IN PRKAPC_STATE ApcState
 );
 
+// win8-win11不变
+constexpr ULONG SystemCallNumberOffset = 0x80;
+
 // 需要给asm文件使用
 extern "C"
 {
@@ -78,7 +81,7 @@ extern "C"
 	// 存储我们的Syscall Handler(汇编) 的地址的指针
 	inline ULONG_PTR PtrDetourKiSystemServiceStart = NULL;
 	// 上面的汇编 Handler会调用这个C Handler
-	void SystemCallHandler(KTRAP_FRAME* TrapFrame, ULONG SSDT_INDEX);
+	void SystemCallHandler(KTRAP_FRAME* TrapFrame);
 
 	// Hook中的调用原始函数的函数指针
 	inline PVOID OriKiSystemServiceStart = NULL;
@@ -99,7 +102,8 @@ extern "C"
 
 NTSTATUS InitSystemVar();
 
-void DoSystemCallHook();
+void EnableSystemCallHook();
+void RemoveSyscallHook();
 
 struct fpSystemCall : public ICFakePage
 {
@@ -126,3 +130,5 @@ struct fpSystemCall : public ICFakePage
 	}
 
 };
+
+void LogSysArgs(ULONG_PTR Arg, ULONG Count);

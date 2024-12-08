@@ -36,7 +36,7 @@ extern "C" {
 // A size for log buffer in NonPagedPool. Two buffers are allocated with this
 // size. Exceeded logs are ignored silently. Make it bigger if a buffered log
 // size often reach this size.
-static const auto kLogpBufferSizeInPages = 16ul;
+static const auto kLogpBufferSizeInPages = 4096ul;
 
 // An actual log buffer size in bytes.
 static const auto kLogpBufferSize = PAGE_SIZE * kLogpBufferSizeInPages;
@@ -445,6 +445,7 @@ _Use_decl_annotations_ NTSTATUS LogpPrint(ULONG level,
 
   status = LogpPut(message, attribute);
   if (!NT_SUCCESS(status)) {
+    // 日志丢了,需要调大kLogpBufferSizeInPages
     LogpDbgBreak();
   }
   return status;

@@ -12,6 +12,8 @@ extern "C" {
 extern LARGE_INTEGER MmOneSecond;
 extern LARGE_INTEGER MmHalfSecond;
 extern LARGE_INTEGER Mm30Milliseconds;
+
+// 其他extern的地方只读不写
 tagGlobalConfig GlobalConfig;
 
 void ConfigUpdateThread(
@@ -85,8 +87,8 @@ void ConfigUpdateThread(
                                         continue;
                                     }
                                     else {
-                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.path %s", GlobalConfig.path.c_str());
                                         GlobalConfig.path = path->valuestring;
+                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.path %s", GlobalConfig.path.c_str());
                                     }
 
                                     cJSON* capture = cJSON_GetObjectItem(root, "capture");
@@ -95,10 +97,31 @@ void ConfigUpdateThread(
                                         continue;
                                     }
                                     else {
-                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.capture %s", GlobalConfig.capture.c_str());
                                         GlobalConfig.capture = capture->valuestring;
+                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.capture %s", GlobalConfig.capture.c_str());
                                     }
 
+                                    // 拦截syscall的进程路径
+                                    cJSON* syscall = cJSON_GetObjectItem(root, "syscall");
+                                    if (syscall == NULL || !cJSON_IsString(syscall)) {
+                                        HYPERPLATFORM_LOG_INFO("syscall == NULL || !cJSON_IsString(syscall)");
+                                        continue;
+                                    }
+                                    else {
+                                        GlobalConfig.syscall = syscall->valuestring;
+                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.syscall %s", GlobalConfig.syscall.c_str());
+                                    }
+
+                                    // 
+                                    cJSON* hexbytes = cJSON_GetObjectItem(root, "hexbytes");
+                                    if (hexbytes == NULL || !cJSON_IsNumber(hexbytes)) {
+                                        HYPERPLATFORM_LOG_INFO("hexbytes == NULL || !cJSON_IsNumber(hexbytes)");
+                                        continue;
+                                    }
+                                    else {
+                                        GlobalConfig.hexbytes = hexbytes->valueulong;
+                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.hexbytes %d", GlobalConfig.hexbytes);
+                                    }
                                 
                             }
                             else {

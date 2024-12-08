@@ -22,9 +22,17 @@ struct SSDTStruct
 // SSDT µÿ÷∑
 inline ULONG_PTR SSDTAddress;
 
+inline std::hashtable<ULONG, std::string> SSDTSymbolTable;
+
 namespace ssdt {
     bool GetKeServiceDescriptorTable(ULONG_PTR* SSDTAddress);
     PVOID GetSSDTEntry(ULONG TableIndex);
-    auto InitSymbolTable();
-    std::string GetSymbolFromAddress(PVOID Address);
+    std::hashtable<ULONG, std::string>& InitGetSymbolTable();
+    std::string GetSymbolFromAddress(ULONG SSDT_INDEX);
+
+
 }
+
+
+
+ULONG GetExportOffset(const unsigned char* FileData, ULONG FileSize, const char* ExportName);

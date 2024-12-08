@@ -45,13 +45,14 @@ namespace anti {
 		, IN DWORD dwBackColor
 		, IN ULONG fl) {
 		ENTER_HOOK("NtGdiBitBlt");
-		HYPERPLATFORM_LOG_DEBUG("xDes %d , YDes %d , cxDes %d , cyDes %d , xSrc %d , ySrc %d , cxSrc %d , cySrc %d", xDes, yDes, cxDes, cyDes, xSrc, ySrc, cxSrc, cySrc);
+		//HYPERPLATFORM_LOG_DEBUG("xDes %d , YDes %d , cxDes %d , cyDes %d , xSrc %d , ySrc %d , cxSrc %d , cySrc %d", xDes, yDes, cxDes, cyDes, xSrc, ySrc, cxSrc, cySrc);
 
 		struct ScreenPixel {
 			~ScreenPixel(){}
 			int x;
 			int y;
 		};
+		// 常用显示屏分辨率及缩放
 		std::vector<ScreenPixel> Full;
 		Full.push_back(ScreenPixel(1536, 864)); // DPI = 125%
 		Full.push_back(ScreenPixel(1920, 1080));

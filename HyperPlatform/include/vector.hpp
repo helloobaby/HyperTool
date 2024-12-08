@@ -114,15 +114,10 @@ namespace std {
 			// 两个T类型的指针相减，编译器会自动用地址差值/对象大小(Size T)，获得准确的对象数量
 			return size_type(end_of_storage - start); 
 		}
+
+		// 返回原来元素的引用
 		reference operator[](size_type n) { return *(begin() + n); }
 		
-		/*
-		*
-		void insert(iterator postion, size_type n, const T& x)
-		{
-		
-		}
-		*/
 		void resize(size_type new_size)
 		{
 			if (new_size < size()) {

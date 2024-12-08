@@ -600,8 +600,8 @@ _Use_decl_annotations_ static void VmmpHandleMsrAccess(
 
   if (!is_vaild_msr && (guest_context->gp_regs->cx != HV_X64_MSR_GUEST_IDLE)) 
   {
-      //在vmware下，不支持的msr，会返回未定义的值，而不会蓝屏
-      //真实机子下这样的话不try-catch是要蓝屏的,所以我们要注入给guest一个#GP   
+      // 在vmware下，不支持的msr，会返回未定义的值，而不会蓝屏
+      // 真实机子下这样的话不try-catch是要蓝屏的,所以我们要注入给guest一个#GP   
       VmmpInjectInterruption(
           InterruptionType::kHardwareException,
           InterruptionVector::kGeneralProtectionException,

@@ -20,7 +20,7 @@
 * @_ismatch  实现字符串并返回是否匹配 
 * @param   src 源字符串
 * @param   pattern  PCRE正则表达式 
-* @return  pcre_exec接口的返回值 >0就是匹配到了
+* @return  pcre_exec接口的返回值 >0 就是匹配到了
 */ 
 
 inline int _ismatch( char* src, char* pattern)
@@ -39,7 +39,7 @@ inline int _ismatch( char* src, char* pattern)
 
 
 	if (re == NULL) {  // 如果编译失败，返回-1
-		HYPERPLATFORM_LOG_INFO("Regex Exp Compile fail , %s", pattern);
+		HYPERPLATFORM_LOG_INFO_SAFE("Regex Exp Compile fail , expression -> %s", pattern);
 		return PCRE_ERROR_NOMATCH;
 	}
 	result = pcre_exec(re, // code, 输入参数，用pcre_compile编译好的正则表达结构的指针

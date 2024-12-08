@@ -15,7 +15,8 @@ extern "C" {
 //
 // macro utilities
 //
-
+#define IS_PRINTABLE(c) (c >= 0x20 && c < 0x7f)
+#define IS_ENDLINE(c) (c == 0x0A || c == 0xD)
 ////////////////////////////////////////////////////////////////////////////////
 //
 // constants and macros
@@ -373,5 +374,16 @@ HANDLE GetCrsPid();
 
 NTSTATUS BBScanSection(IN PCCHAR section, IN PCUCHAR pattern, IN UCHAR wildcard, IN ULONG_PTR len, OUT PVOID* ppFound);
 NTSTATUS BBSearchPattern(IN PCUCHAR pattern, IN UCHAR wildcard, IN ULONG_PTR len, IN const VOID* base, IN ULONG_PTR size, OUT PVOID* ppFound);
+
+size_t getAsciiLenW(const wchar_t* inp, size_t maxInp);
+enum Type {
+    TypeUnknowPtr,           // 合法地址,但是不知道具体指向什么类型
+    TypePUNICODE_STRING,     // 指针指向UNICODE_STRING
+    TypePOBJECT_ATTRIBUTES,  // 指针指向OBJECT_ATTRIBUTES
+    TypePWIDECHAR,           // 指针指向WIDE_CHAR
+    TypeUnknow               // 完全不知道
+};
+
+Type GuessAddressType(ULONG_PTR Address);
 
 #endif  // HYPERPLATFORM_UTIL_H_
