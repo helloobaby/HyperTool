@@ -1,10 +1,11 @@
 {
-    "path":"",
     "hooks":
     {
-        "log":"true"
+        "path":""
     },
-    "syscall":"syscall",
-	"hexbytes":32,
-	"capture":"explorer"
+    "syscall":{
+        "path":"",
+        "hexbytes":32
+    },
+	"anti_capture_white":"explorer"
 }

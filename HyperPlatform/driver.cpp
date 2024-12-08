@@ -156,12 +156,16 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
   if (!fuzz::FuzzInit())
   {
       LogTermination();
+      RemoveSyscallHook(); 
+      RemoveServiceHook(); 
       return STATUS_UNSUCCESSFUL;
   }
 
   if (!anti::AntiCapturesInit())
   {
       LogTermination();
+      RemoveSyscallHook();
+      RemoveServiceHook(); 
       return STATUS_UNSUCCESSFUL;
   }
 
@@ -226,6 +230,10 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
     //GlobalObjectTermination();
     _CRT_UNLOAD();
     LogTermination();
+    RemoveSyscallHook();
+    RemoveServiceHook();
+    ConfigExitVar = true;
+    KeDelayExecutionThread(KernelMode, false, &MmOneSecond);
     return status;
   }
 

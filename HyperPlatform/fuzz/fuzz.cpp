@@ -75,7 +75,7 @@ namespace fuzz{
 			};
 
 			if (ProcessName && NT_SUCCESS(MyStatus)) {
-				if (GlobalConfig.path.empty() && GlobalConfig.hooks_log && ProcessName) {
+				if (GlobalConfig.APIHook.path.empty() && ProcessName) {
 					_Hook_Log();
 				}
 			}

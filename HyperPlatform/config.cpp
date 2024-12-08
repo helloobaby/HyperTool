@@ -57,51 +57,30 @@ void ConfigUpdateThread(
                             root = cJSON_Parse((char*)buffer);
                             if (root) {
 
-                                    // 解析hooks
                                     cJSON* hooks = cJSON_GetObjectItem(root, "hooks");
                                     if (hooks == NULL || !cJSON_IsObject(hooks)) {
-                                        HYPERPLATFORM_LOG_ERROR("hooks == NULL || !cJSON_IsObject(hooks)");
+                                        HYPERPLATFORM_LOG_ERROR("json parse hooks fail");
                                         continue;
                                     }
 
-                                    // 解析hooks::log
-                                    cJSON* log = cJSON_GetObjectItem(hooks, "log");
-                                    if (log != NULL && cJSON_IsString(log)) {
-                                        if (!_strcmpi_a("true", log->valuestring)) {
-                                            GlobalConfig.hooks_log = true;
-                                            HYPERPLATFORM_LOG_DEBUG("GlobalConfig.hooks_log = true");
-                                        }
-                                        else if (!_strcmpi_a("false", log->valuestring)) {
-                                            GlobalConfig.hooks_log = false;
-                                            HYPERPLATFORM_LOG_DEBUG("GlobalConfig.hooks_log = false");
-                                        }
+                                    cJSON* path = cJSON_GetObjectItem(hooks, "path");
+                                    if (path != NULL && cJSON_IsString(path)) {
+                                        GlobalConfig.APIHook.path = path->valuestring;
                                     }
                                     else {
-                                        HYPERPLATFORM_LOG_ERROR("log != NULL && cJSON_IsString(log)");
+                                        HYPERPLATFORM_LOG_ERROR("json parse GlobalConfig.APIHook.path fail");
                                     }
 
-                                    // 解析path
-                                    cJSON* path = cJSON_GetObjectItem(root, "path");
-                                    if (path == NULL || !cJSON_IsString(path)) {
-                                        HYPERPLATFORM_LOG_INFO("path == NULL || !cJSON_IsString(path)");
-                                        continue;
-                                    }
-                                    else {
-                                        GlobalConfig.path = path->valuestring;
-                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.path %s", GlobalConfig.path.c_str());
-                                    }
-
-                                    cJSON* capture = cJSON_GetObjectItem(root, "capture");
+                                    cJSON* capture = cJSON_GetObjectItem(root, "anti_capture_white");
                                     if (capture == NULL || !cJSON_IsString(capture)) {
-                                        HYPERPLATFORM_LOG_INFO("capture == NULL || !cJSON_IsString(capture)");
+                                        HYPERPLATFORM_LOG_INFO("json parse anti_capture_white fail");
                                         continue;
                                     }
                                     else {
-                                        GlobalConfig.capture = capture->valuestring;
-                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.capture %s", GlobalConfig.capture.c_str());
+                                        GlobalConfig.anti_capture_white = capture->valuestring;
+                                        HYPERPLATFORM_LOG_DEBUG("GlobalConfig.anti_capture_white %s", GlobalConfig.anti_capture_white.c_str());
                                     }
 
-                                    // 拦截syscall的进程路径
                                     cJSON* syscall = cJSON_GetObjectItem(root, "syscall");
                                     if (syscall == NULL || !cJSON_IsString(syscall)) {
                                         HYPERPLATFORM_LOG_INFO("syscall == NULL || !cJSON_IsString(syscall)");

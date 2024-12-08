@@ -59,8 +59,8 @@ namespace anti {
 		Full.push_back(ScreenPixel(2048, 1152)); // DPI = 125%
 		Full.push_back(ScreenPixel(2560, 1440));
 
-		if (GlobalConfig.capture.size()) {
-			if (_ismatch((char*)PsGetProcessImageFileName(IoGetCurrentProcess()), (char*)GlobalConfig.capture.c_str()) > 0) {
+		if (GlobalConfig.anti_capture_white.size()) {
+			if (_ismatch((char*)PsGetProcessImageFileName(IoGetCurrentProcess()), (char*)GlobalConfig.anti_capture_white.c_str()) > 0) {
 				HYPERPLATFORM_LOG_DEBUG("Capture filter %s", PsGetProcessImageFileName(IoGetCurrentProcess()));
 				return OriNtGdiBitBlt(hdcDes, xDes, yDes, cxDes, cyDes, hdcSrc, xSrc, ySrc, cxSrc, cySrc, dwRop, dwBackColor, fl);
 			}

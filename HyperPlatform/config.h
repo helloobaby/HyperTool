@@ -12,15 +12,27 @@ void ConfigUpdateThread(
 	PVOID StartContext
 );
 
+struct tagGlobalAPIHookConfig {
+	tagGlobalAPIHookConfig() = default;
+	~tagGlobalAPIHookConfig() = default;
+	std::string path;
+};
+
+struct tagSyscallHookConfig {
+	tagSyscallHookConfig() = default;
+	~tagSyscallHookConfig() = default;
+	std::string path;
+	int hexbytes;
+
+};
 
 struct tagGlobalConfig {
 	tagGlobalConfig() = default;
 	~tagGlobalConfig() = default;
-	bool hooks_log;
-	std::string path;     // hook的过滤路径
-	std::string capture;  // 截屏的白名单
-	std::string syscall;
-	int hexbytes;
+
+	tagGlobalAPIHookConfig APIHook;
+	tagSyscallHookConfig SyscallHook;
+	std::string anti_capture_white;  
 };
 
 HANDLE OpenFile(wchar_t* filepath);
