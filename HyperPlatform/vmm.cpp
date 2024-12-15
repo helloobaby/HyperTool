@@ -1309,7 +1309,8 @@ _Use_decl_annotations_ static void VmmpHandleVmx(GuestContext *guest_context) {
   guest_context->flag_reg.fields.sf = false;
   guest_context->flag_reg.fields.of = false;
   UtilVmWrite(VmcsField::kGuestRflags, guest_context->flag_reg.all);
-  HYPERPLATFORM_LOG_INFO_SAFE("Ignore vmx instruction ");
+  // TODO : 实现嵌套虚拟化
+  HYPERPLATFORM_LOG_ERROR_SAFE("Dont support nest virtualization");
   VmmpAdjustGuestInstructionPointer(guest_context);
 }
 

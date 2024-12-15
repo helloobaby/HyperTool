@@ -15,6 +15,7 @@ namespace fuzz{
 		using NtDeviceIoControlFileType = decltype(&NtDeviceIoControlFile);
 		NtDeviceIoControlFileType OriNtDeviceIoControlFile;
 
+		// 被Sycall HOOK替代了,不需要了
 		NTSTATUS DetourNtDeviceIoControlFile(
 			_In_ HANDLE FileHandle,
 			_In_opt_ HANDLE Event,
@@ -110,7 +111,7 @@ namespace fuzz{
 
 	bool FuzzInit() {
 		ExInitializeFastMutex(&RepeatMsgCacheLock);
-		AddServiceHook(UtilGetSystemProcAddress(L"NtDeviceIoControlFile"), DetourNtDeviceIoControlFile, (PVOID*)&OriNtDeviceIoControlFile, "NtDeviceIoControlFile");
+
 		return true;
 	}
 
