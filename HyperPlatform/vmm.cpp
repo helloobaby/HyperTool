@@ -431,15 +431,6 @@ _Use_decl_annotations_ static void VmmpHandleException(
           UtilVmRead(VmcsField::kVmExitInstructionLen);
       UtilVmWrite(VmcsField::kVmEntryInstructionLen, exit_inst_length);
 
-      /*
-      * Q:思考一下如果不给客户机注入int3会发生什么事情？
-      * A:guest -> int3 -> vmm -> #bp handler 如果handler不调整guest rip的话，guest就会一直执行int3
-      */
-#if 0 //如果调用VmmpInjectInterruption注入异常，那么guest的rip就由guest来调整，也就是vmm不干涉，这样是比较理想的。
-      VmmpAdjustGuestInstructionPointer(guest_context);
-#endif 
-
-
     } else {
       HYPERPLATFORM_COMMON_BUG_CHECK(HyperPlatformBugCheck::kUnspecified, 0, 0,
                                      0);
@@ -459,31 +450,11 @@ _Use_decl_annotations_ static void VmmpHandleCpuid(
   const auto function_id = static_cast<int>(guest_context->gp_regs->ax);
   const auto sub_function_id = static_cast<int>(guest_context->gp_regs->cx);
 
-  //VMM替VM执行一遍cpuid，并返回相应结果
+  // VMM替VM执行一遍cpuid，并返回相应结果
   __cpuidex(reinterpret_cast<int *>(cpu_info), function_id, sub_function_id);
-
-  //
-  //用虚拟机管理员位来提示VMM存在
-  //用硬件保留的id号来返回vmm标识
-  //
-
-  //
-  //这里先选择不做处理，如果有需要伪造返回数据就可以再改
-  //
-#if 0
-  if (function_id == 1) {
-    // Present existence of a hypervisor using the HypervisorPresent bit
-    CpuFeaturesEcx cpu_features = {static_cast<ULONG32>(cpu_info[2])};
-    cpu_features.fields.not_used = true;
-    cpu_info[2] = static_cast<int>(cpu_features.all);
-  } else if (function_id == kHyperVCpuidInterface) {
-    // Leave signature of HyperPlatform onto EAX
-    cpu_info[0] = 'PpyH';
-  }
-#endif
-  //
-  //https://www.deepinstinct.com/blog/malware-evasion-techniques-part-2-anti-vm-blog
-  //解决cpuid的示例1示例2
+  
+  // https://www.deepinstinct.com/blog/malware-evasion-techniques-part-2-anti-vm-blog
+  // 解决cpuid的示例1示例2
   //
 
   if (function_id == 0) {
@@ -496,19 +467,13 @@ _Use_decl_annotations_ static void VmmpHandleCpuid(
       return;
   }
   
-  //cpuid.1.ecx="0-:--:--:--:--:--:--:--"
+  // 防止Guest检测Hypervisor
   if (function_id == 1) {
       // Present existence of a hypervisor using the HypervisorPresent bit
       CpuFeaturesEcx cpu_features = { static_cast<ULONG32>(cpu_info[2]) };
-      cpu_features.fields.not_used = false;//指示虚拟机不存在
+      cpu_features.fields.not_used = false;
       cpu_info[2] = static_cast<int>(cpu_features.all);
   }
-
-  //
-  //VMX文件中加入，替换默认的cpuid 40000000返回值
-  //cpuid.40000000.ecx=”0000:0000:0000:0000:0000:0000:0000:0000”
-  //cpuid.40000000.edx = ”0000:0000 : 0000 : 0000 : 0000 : 0000 : 0000 : 0000”
-  //
 
   guest_context->gp_regs->ax = cpu_info[0];
   guest_context->gp_regs->bx = cpu_info[1];
@@ -1299,6 +1264,7 @@ _Use_decl_annotations_ static void VmmpHandleCrAccess(
 }
 
 // VMX instructions except for VMCALL
+// TODO : 实现嵌套虚拟化
 _Use_decl_annotations_ static void VmmpHandleVmx(GuestContext *guest_context) {
   HYPERPLATFORM_PERFORMANCE_MEASURE_THIS_SCOPE();
   // See: CONVENTIONS
@@ -1309,7 +1275,6 @@ _Use_decl_annotations_ static void VmmpHandleVmx(GuestContext *guest_context) {
   guest_context->flag_reg.fields.sf = false;
   guest_context->flag_reg.fields.of = false;
   UtilVmWrite(VmcsField::kGuestRflags, guest_context->flag_reg.all);
-  // TODO : 实现嵌套虚拟化
   HYPERPLATFORM_LOG_ERROR_SAFE("Dont support nest virtualization");
   VmmpAdjustGuestInstructionPointer(guest_context);
 }

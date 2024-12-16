@@ -203,7 +203,7 @@ AsmVmmEntryPoint PROC FRAME
     jz exitVm               ; if (!vm_continue) jmp exitVm
 
     POPAQ
-    vmresume
+    vmresume                ; vm-exit -> vmentry
     jmp vmxError
 
 exitVm:
@@ -212,7 +212,7 @@ exitVm:
     ;   rdx = Guest's rsp
     ;   rcx = Guest's rip for the next instruction
     POPAQ
-    vmxoff
+    vmxoff                  ; ÍË³öÐéÄâ»¯
     jz vmxError             ; if (ZF) jmp
     jc vmxError             ; if (CF) jmp
     push rax

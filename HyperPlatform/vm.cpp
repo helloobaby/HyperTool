@@ -661,10 +661,15 @@ _Use_decl_annotations_ static bool VmpSetupVmcs(
                             vm_procctl_requested.all)};
 
   VmxSecondaryProcessorBasedControls vm_procctl2_requested = {};
-  vm_procctl2_requested.fields.enable_ept = true;                // 不开启ept可以更好的复现一些问题
+  
+  // 不开启ept可以更好的复现一些问题
+  vm_procctl2_requested.fields.enable_ept = true;           
+
+
   // TODO : 这地方的VM-EXIT Handler有BUG,不要开
   // 目前发现与火绒驱动不兼容
   vm_procctl2_requested.fields.descriptor_table_exiting = false; 
+
 
   vm_procctl2_requested.fields.enable_rdtscp = true; 
   vm_procctl2_requested.fields.enable_vpid = true; 
@@ -722,7 +727,8 @@ _Use_decl_annotations_ static bool VmpSetupVmcs(
   // clang-format off
   auto error = VmxStatus::kOk;
 
-  /* 16-Bit Control Field */  //host为0，所以每个核的vpid各自要加1
+  /* 16-Bit Control Field */  
+  // host为0，所以每个核的vpid各自要加1
   error |= UtilVmWrite(VmcsField::kVirtualProcessorId, KeGetCurrentProcessorNumberEx(nullptr) + 1);
 
   /* 16-Bit Guest-State Fields */
