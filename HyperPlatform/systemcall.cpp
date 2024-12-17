@@ -319,11 +319,13 @@ void SystemCallHandler(KTRAP_FRAME* TrapFrame)
 		});
 
 	if (GlobalConfig.SyscallHook.path.size()) {
-		PUNICODE_STRING usProcessName = UtilGetProcessNameByEPROCESS(IoGetCurrentProcess());
+		PUNICODE_STRING usProcessName;
+		SeLocateProcessImageName(IoGetCurrentProcess(), &usProcessName);
 		ANSI_STRING asProcessName = {};
 		Status = RtlUnicodeStringToAnsiString(&asProcessName, usProcessName, true);
 		auto __ = [&]() {
-			if (usProcessName) { ExFreeToNPagedLookasideList(g_1K_LookasideList, usProcessName->Buffer); ExFreeToNPagedLookasideList(g_1K_LookasideList, usProcessName);}
+			if (NT_SUCCESS(Status) && usProcessName) { ExFreePool(usProcessName); }
+
 			if (NT_SUCCESS(Status)) {
 				RtlFreeAnsiString(&asProcessName);
 			}

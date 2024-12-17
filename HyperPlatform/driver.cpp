@@ -277,6 +277,7 @@ _Use_decl_annotations_ static void DriverpDriverUnload(
   RemoveSyscallHook(); // 卸载syscall hook
   RemoveServiceHook(); // 卸载api hook
   HyperDestroyDeviceAll(driver_object); // 卸载device
+  ExDeleteNPagedLookasideList(g_1K_LookasideList); // 删除快表
   LogTermination(); // 日志最后卸载
 
 }

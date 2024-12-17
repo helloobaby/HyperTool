@@ -299,7 +299,7 @@ _IRQL_requires_max_(DISPATCH_LEVEL) NTSTATUS
     UtilForceCopyMemory(_In_ void *destination, _In_ const void *source,
                         _In_ SIZE_T length);
 
-/// 根据EPROCESS获得进程全路径
+/// 根据EPROCESS获得进程全路径,性能不是很好
 /// @param Process 目标进程结构
 /// @return if (ProcessName) {ExFreeToNPagedLookasideList(g_1K_LookasideList, usProcessName->Buffer); ExFreeToNPagedLookasideList(g_1K_LookasideList, usProcessName);}
 PUNICODE_STRING UtilGetProcessNameByEPROCESS(PEPROCESS Process);
