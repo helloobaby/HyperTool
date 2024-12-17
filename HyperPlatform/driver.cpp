@@ -45,6 +45,8 @@ extern bool is_cet_enable;
 
 extern LARGE_INTEGER MmHalfSecond;
 extern LARGE_INTEGER MmOneSecond;
+
+PNPAGED_LOOKASIDE_LIST g_1K_LookasideList;
  
 extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
@@ -211,6 +213,11 @@ _Use_decl_annotations_ NTSTATUS DriverEntry(PDRIVER_OBJECT driver_object,
     LogTermination();
     return status;
   }
+
+  g_1K_LookasideList =
+      (PNPAGED_LOOKASIDE_LIST)ExAllocatePoolWithTag(NonPagedPool, sizeof(NPAGED_LOOKASIDE_LIST), 'urfh');
+
+  ExInitializeNPagedLookasideList(g_1K_LookasideList, NULL, NULL, 0, 1024, 'urfh', 0);
 
   // 创建配置更新线程
   PsCreateSystemThread(&hConfigThread, 0, NULL, NULL, NULL, &ConfigUpdateThread, NULL);

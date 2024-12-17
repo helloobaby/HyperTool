@@ -31,6 +31,7 @@ char SystemCallRecoverCode[15] = {};
 LONG SyscallRefCount = 0;
 
 extern tagGlobalConfig GlobalConfig;
+extern PNPAGED_LOOKASIDE_LIST g_1K_LookasideList;
 
 //copy from blackbone
 PKLDR_DATA_TABLE_ENTRY GetSystemModule(IN PUNICODE_STRING pName, IN PVOID pAddress)
@@ -290,11 +291,6 @@ void RemoveSyscallHook() {
 // https://j00ru.vexillium.org/syscalls/nt/64/
 void SystemCallHandler(KTRAP_FRAME* TrapFrame)
 {
-	// 内核模式的Zw*函数会设置KernelMode,然后走KiSystemServiceStart
-	// 这里监控syscall不需要内核的事件
-	if (ExGetPreviousMode() != UserMode)
-		return;
-
 	ULONG_PTR Rcx = TrapFrame->Rcx;
 	ULONG_PTR Rdx = TrapFrame->Rdx;
 
@@ -310,6 +306,12 @@ void SystemCallHandler(KTRAP_FRAME* TrapFrame)
 	ULONG_PTR arg10 = *(ULONG_PTR*)(TrapFrame->Rsp + 0x50);
 	ULONG_PTR arg11 = *(ULONG_PTR*)(TrapFrame->Rsp + 0x58);
 
+	// 内核模式的Zw*函数会设置KernelMode,然后走KiSystemServiceStart
+	// 这里监控syscall不需要内核的事件
+	if (ExGetPreviousMode() != UserMode)
+		return;
+	
+	NTSTATUS Status = STATUS_SUCCESS;
 
 	InterlockedAdd(&SyscallRefCount, -1);
 	auto _ = make_scope_exit([&]() {
@@ -317,7 +319,17 @@ void SystemCallHandler(KTRAP_FRAME* TrapFrame)
 		});
 
 	if (GlobalConfig.SyscallHook.path.size()) {
-		if (_ismatch((char*)PsGetProcessImageFileName(IoGetCurrentProcess()), (char*)GlobalConfig.SyscallHook.path.c_str()) > 0) {
+		PUNICODE_STRING usProcessName = UtilGetProcessNameByEPROCESS(IoGetCurrentProcess());
+		ANSI_STRING asProcessName = {};
+		Status = RtlUnicodeStringToAnsiString(&asProcessName, usProcessName, true);
+		auto __ = [&]() {
+			if (usProcessName) { ExFreeToNPagedLookasideList(g_1K_LookasideList, usProcessName->Buffer); ExFreeToNPagedLookasideList(g_1K_LookasideList, usProcessName);}
+			if (NT_SUCCESS(Status)) {
+				RtlFreeAnsiString(&asProcessName);
+			}
+		};
+		if (NT_SUCCESS(Status) && _ismatch(asProcessName.Buffer, (char*)GlobalConfig.SyscallHook.path.c_str()) > 0) {
+
 			PETHREAD Thread = PsGetCurrentThread();
 			PULONG PSystemCallNumber = (PULONG)((char*)Thread + SystemCallNumberOffset);
 
@@ -357,7 +369,7 @@ void LogSysArgs(ULONG_PTR Arg, ULONG Count) {
 		HYPERPLATFORM_LOG_INFO_SAFE("arg%d -> %llx", Count, Arg);
 	}
 	else if (type == TypeUnknowPtr) {
-		char* print = (char*)ExAllocatePoolWithTag(NonPagedPool, GlobalConfig.SyscallHook.hexbytes + 1, 'sys');
+		char print[PAGE_SIZE] = {};
 #define MAX_PRINT 2048
 		int len = 0;
 		char print_hex[PAGE_SIZE] = {};
@@ -380,8 +392,6 @@ void LogSysArgs(ULONG_PTR Arg, ULONG Count) {
 		}
 
 		HYPERPLATFORM_LOG_INFO_SAFE("arg%d -> Ptr %p -> %s -> %s", Count, Arg, print, print_hex);
-
-		ExFreePoolWithTag(print, 'sys');
 	}
 	else if (type == TypePUNICODE_STRING) {
 		HYPERPLATFORM_LOG_INFO_SAFE("arg%d -> %wZ", Count, Arg);
