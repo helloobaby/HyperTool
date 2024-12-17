@@ -383,14 +383,19 @@ void LogSysArgs(ULONG_PTR Arg, ULONG Count) {
 			return;
 		}
 		for (int i = 0; i < GlobalConfig.SyscallHook.hexbytes; i++) {
-			unsigned c = *((unsigned char*)Arg + i);
-			if (IS_PRINTABLE(c)) {
-				print[i] = c;
+			__try {
+				unsigned c = *((unsigned char*)Arg + i);
+				if (IS_PRINTABLE(c)) {
+					print[i] = c;
+				}
+				else {
+					print[i] = '.';
+				}
+				len += sprintf_s(print_hex + len, MAX_PRINT - len, "%02X ", c);
 			}
-			else {
-				print[i] = '.';
+			__except (EXCEPTION_EXECUTE_HANDLER) {
+				return;
 			}
-			len += sprintf_s(print_hex + len, MAX_PRINT - len, "%02X ", c);
 		}
 
 		HYPERPLATFORM_LOG_INFO_SAFE("arg%d -> Ptr %p -> %s -> %s", Count, Arg, print, print_hex);
