@@ -320,47 +320,46 @@ void SystemCallHandler(KTRAP_FRAME* TrapFrame)
 
 	if (GlobalConfig.SyscallHook.path.size()) {
 		PUNICODE_STRING usProcessName;
-		SeLocateProcessImageName(IoGetCurrentProcess(), &usProcessName);
+		Status = SeLocateProcessImageName(IoGetCurrentProcess(), &usProcessName);
 		ANSI_STRING asProcessName = {};
-		Status = RtlUnicodeStringToAnsiString(&asProcessName, usProcessName, true);
-		auto __ = [&]() {
-			if (NT_SUCCESS(Status) && usProcessName) { ExFreePool(usProcessName); }
+		if (NT_SUCCESS(Status)) {
+			Status = RtlUnicodeStringToAnsiString(&asProcessName, usProcessName, true);
+			auto __ = [&]() {
+				if (NT_SUCCESS(Status) && usProcessName) { ExFreePool(usProcessName); }
 
-			if (NT_SUCCESS(Status)) {
-				RtlFreeAnsiString(&asProcessName);
+				if (NT_SUCCESS(Status)) {
+					RtlFreeAnsiString(&asProcessName);
+				}
+			};
+			if (NT_SUCCESS(Status) && _ismatch(asProcessName.Buffer, (char*)GlobalConfig.SyscallHook.path.c_str()) > 0) {
+
+				PETHREAD Thread = PsGetCurrentThread();
+				PULONG PSystemCallNumber = (PULONG)((char*)Thread + SystemCallNumberOffset);
+
+				// SSDT
+				if (*PSystemCallNumber < 0x1000) {
+					PVOID TargetFunction = ssdt::GetSSDTEntry(*PSystemCallNumber);
+					UNREFERENCED_PARAMETER(TargetFunction);
+
+					std::string TargetFunctionName = ssdt::GetSymbolFromAddress(*PSystemCallNumber);
+
+					HYPERPLATFORM_LOG_INFO_SAFE("%s : ", TargetFunctionName.size() ? TargetFunctionName.c_str() : "-");
+
+					// 打印参数,一般来说NT函数最多的参数数量是11个
+					LogSysArgs(Rcx, 1);
+					LogSysArgs(Rdx, 2);
+					LogSysArgs(R8, 3);
+					LogSysArgs(R9, 4);
+					LogSysArgs(arg5, 5);
+					LogSysArgs(arg6, 6);
+					LogSysArgs(arg7, 7);
+				}
+				// SSSDT
+				else {
+
+				}
+
 			}
-		};
-		if (NT_SUCCESS(Status) && _ismatch(asProcessName.Buffer, (char*)GlobalConfig.SyscallHook.path.c_str()) > 0) {
-
-			PETHREAD Thread = PsGetCurrentThread();
-			PULONG PSystemCallNumber = (PULONG)((char*)Thread + SystemCallNumberOffset);
-
-			// SSDT
-			if (*PSystemCallNumber < 0x1000) {
-				PVOID TargetFunction = ssdt::GetSSDTEntry(*PSystemCallNumber);
-				UNREFERENCED_PARAMETER(TargetFunction);
-
-				std::string TargetFunctionName = ssdt::GetSymbolFromAddress(*PSystemCallNumber);
-
-				HYPERPLATFORM_LOG_INFO_SAFE("%s : ", TargetFunctionName.size() ? TargetFunctionName.c_str() : "-");
-
-				// 打印参数,一般来说NT函数最多的参数数量是11个
-				LogSysArgs(Rcx, 1);
-				LogSysArgs(Rdx, 2);
-				LogSysArgs(R8, 3);
-				LogSysArgs(R9, 4);
-				LogSysArgs(arg5, 5);
-				LogSysArgs(arg6, 6);
-				LogSysArgs(arg7, 7);
-			}
-
-
-
-			// SSSDT
-			else {
-
-			}
-
 		}
 	}
 }

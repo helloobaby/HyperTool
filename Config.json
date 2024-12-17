@@ -4,7 +4,7 @@
         "path":""
     },
     "syscall":{
-        "path":"",
+        "path":"Example.exe",
         "hexbytes":32
     },
 	"anti_capture_white":"explorer"
