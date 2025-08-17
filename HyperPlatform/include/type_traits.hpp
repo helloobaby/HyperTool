@@ -162,17 +162,16 @@ namespace std
 	* 精确到每一个const和unsigned等修饰符
 	*/
 	template<>
-	struct hash<const char*> 
-	{
-		size_t operator()(const char* str)const noexcept{
-		
-		static unsigned int seed = 131313;//也可以乘以31、131、1313、13131、131313..
-		static unsigned int hash = 0;
-		while(*str)
-		{
-			hash = hash*seed + (*str++);
-        }
-		return hash % 32767;//最好对一个大的素数取余
+	struct hash<const char*> {
+		size_t operator()(const char* str) const noexcept {
+			const size_t fnv_offset = 1469598103934665603ULL;
+			const size_t fnv_prime = 1099511628211ULL;
+			size_t hash = fnv_offset;
+			while (*str) {
+				hash ^= (unsigned char)(*str++);
+				hash *= fnv_prime;
+			}
+			return hash;
 		}
 	};
 
@@ -180,14 +179,14 @@ namespace std
 	struct hash<char*>
 	{
 		size_t operator()(const char* str)const noexcept {
-
-			static unsigned int seed = 131313;//也可以乘以31、131、1313、13131、131313..
-			static unsigned int hash = 0;
-			while (*str)
-			{
-				hash = hash * seed + (*str++);
+			const size_t fnv_offset = 1469598103934665603ULL;
+			const size_t fnv_prime = 1099511628211ULL;
+			size_t hash = fnv_offset;
+			while (*str) {
+				hash ^= (unsigned char)(*str++);
+				hash *= fnv_prime;
 			}
-			return hash % 32767;//最好对一个大的素数取余
+			return hash;
 		}
 	};
 
