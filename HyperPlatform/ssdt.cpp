@@ -111,7 +111,7 @@ namespace ssdt {
             {
                 FileSize = StandardInformation.EndOfFile.LowPart;
                 HYPERPLATFORM_LOG_INFO("FileSize of ntdll.dll is %08X", StandardInformation.EndOfFile.LowPart);
-                FileData = (unsigned char*)ExAllocatePoolWithTag(NonPagedPool, FileSize, 'tdss');
+                FileData = (unsigned char*)ExAllocatePoolWithTag(NonPagedPoolNx, FileSize, 'tdss');
 
                 LARGE_INTEGER ByteOffset;
                 ByteOffset.LowPart = ByteOffset.HighPart = 0;
@@ -122,7 +122,7 @@ namespace ssdt {
                     FileSize,
                     &ByteOffset, NULL);
 
-                if (!NT_SUCCESS(NtStatus))
+                if (!NT_SUCCESS(NtStatus) || IoStatusBlock.Information != FileSize)
                 {
                     ExFreePool(FileData);
                     HYPERPLATFORM_LOG_ERROR("ZwReadFile failed with status %08X...", NtStatus);
@@ -142,13 +142,19 @@ namespace ssdt {
                             continue;
 
                         PCHAR functionName = (PCHAR)((PUCHAR)FileData + RvaToOffset(ntHeaders, names[i], FileSize));
-                        if (!MmIsAddressValid(functionName))
+
+                        // 越界判断
+                        if ((unsigned char*)functionName > (FileData + FileSize))
                             continue;
 
-                        ULONG SSDT_INDEX = GetExportSsdtIndex(FileData, FileSize, functionName);
+                        // 不是nt开头的函数
+                        if (strncmp(functionName, "Nt", 2) != 0)
+                            continue;
+
+                        CONST ULONG SSDT_INDEX = GetExportSsdtIndex(FileData, FileSize, functionName);
                         if (SSDT_INDEX != PE_ERROR_VALUE) {
                             SSDTSymbolTable.insert(SSDT_INDEX, functionName);
-                            HYPERPLATFORM_LOG_DEBUG_SAFE("%x -> %s", SSDT_INDEX, functionName);
+                            HYPERPLATFORM_LOG_DEBUG_SAFE("%d -> %s", SSDT_INDEX, functionName);
                         }
                     }
 
@@ -157,6 +163,7 @@ namespace ssdt {
             }
             else
                 HYPERPLATFORM_LOG_ERROR("ZwQueryInformationFile failed with status %08X...", NtStatus);
+
             ZwClose(FileHandle);
         }
         else

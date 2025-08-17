@@ -4,7 +4,7 @@
         "path":""
     },
     "syscall":{
-        "path":"Example.exe",
+        "path":"Hiview|Mate",
         "hexbytes":32
     },
 	"anti_capture_white":"explorer"
