@@ -106,7 +106,7 @@ AsmInitializeVm PROC
 
     mov rax, rcx ;rax = rcx = VmpInitializeVm
     mov r8, rdx ;r8 = rdx = shard_processor_data
-    mov rdx, asmResumeVm ;
+    mov rdx, asmResumeVm ;  进入vm时的Guest Rip
     mov rcx, rsp ;当前堆栈
 
     sub rsp, 20h

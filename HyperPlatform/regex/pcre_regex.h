@@ -25,6 +25,9 @@
 
 inline int _ismatch( char* src, char* pattern)
 {   
+	// TODO : 捕获这个pattern , 因为有可能在下面pcre_compile编译的时候,这个pattern指针失效了,导致编译正则失败
+	// 因为目前发生的概率不是很高,暂时先忽略
+
 	pcre  *re;
 	const char *error;
 	int  erroffset;
