@@ -77,7 +77,11 @@ NTSTATUS HyperDispatchControl(IN PDEVICE_OBJECT DeviceObject, IN PIRP Irp)
 	{
 		
 		case IOCTL_HYPER_TOOL_TEST: // Test
-			HYPERPLATFORM_LOG_INFO("IOCTL Test ...");
+			HYPERPLATFORM_LOG_INFO("HyperTool IOCTL Test ...");
+			break;
+		case IOCTL_HYPER_CLEAR_LOG:
+			// TODO: 有时候日志输出太多,需要清除文件内容
+
 			break;
 	}
 
