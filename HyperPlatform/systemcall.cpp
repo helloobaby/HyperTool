@@ -148,31 +148,13 @@ fffff805`5cbc50ff 25ff0f0000      and     eax,0FFFh
 	KiSystemServiceStart = (ULONG_PTR)((unsigned char*)KernelBase + textSection->VirtualAddress + KiSSSOffset - 7);
 	HYPERPLATFORM_LOG_INFO("KiSystemServiceStart %llx", KiSystemServiceStart);
 
-	// 定位MmAccessFault
-	const std::vector<std::string> MmAccessFaultPattern = { 
-		// Windows10 17763 
-		"\x40\x55\x53\x56\x57\x41\x54\x41\x56\x48\x8D\x6C\x24\xcc\x48\x81\xEC\xcc\xcc\xcc\xcc\x48\x8B\x05\xcc\xcc\xcc\xcc\x48\x33\xC4\x48\x89\x45\xcc\x45\x33\xE4\x41\x0F\xBE\xF0",
-		// Windows11 22621
-		"\x40\x55\x53\x56\x57\x41\x56\x48\x8D\x6C\x24\xcc\x48\x81\xEC\xcc\xcc\xcc\xcc\x48\x8B\x05\xcc\xcc\xcc\xcc\x48\x33\xC4\x48\x89\x45\xcc\x0F\xB6\xC1" };
-
-	for (auto Pattern : MmAccessFaultPattern) {
-		BBScanSection((char*)".text", (unsigned char*)(Pattern.c_str()), '\xcc', Pattern.size(), (PVOID*)&MmAccessFault);
-	}
-	if (MmAccessFault) {
-		HYPERPLATFORM_LOG_INFO("MmAccessFault %llx", MmAccessFault);
-	}
-	else {
-		HYPERPLATFORM_LOG_ERROR("Cant Find MmAccessFault");
-		return STATUS_UNSUCCESSFUL;
-	}
-
-
 	const std::vector<std::string> MmAttachSessionPattern = {
 		"\x4C\x8B\xDC\x49\x89\x5B\xcc\x49\x89\x6B\xcc\x49\x89\x73\xcc\x57\x41\x56\x41\x57\x48\x83\xEC\xcc\x65\x48\x8B\x04\x25\xcc\xcc\xcc\xcc\x4C\x8B\xFA",
-		"\x4C\x8B\xDC\x49\x89\x5B\xcc\x49\x89\x6B\xcc\x49\x89\x73\xcc\x57\x41\x56\x41\x57\x48\x83\xEC\xcc\x48\x8B\xB9"
-
+		"\x4C\x8B\xDC\x49\x89\x5B\xcc\x49\x89\x6B\xcc\x49\x89\x73\xcc\x57\x41\x56\x41\x57\x48\x83\xEC\xcc\x48\x8B\xB9",
+		"\x48\x89\x5c\x24\xcc\x48\x89\x6c\x24\xcc\x48\x89\x74\x24\xcc\x57\x41\x56\x41\x57\x48\x83\xec\xcc\x65\x48\x8b\x3c\x25\xcc\xcc\xcc\xcc\x48\x8b\xd9"
 	};
 
+	// MmAttachSession这个函数后面的内核删掉了,改成了PsAttachSession,函数原型没有变
 	for (auto Pattern : MmAttachSessionPattern) {
 		BBScanSection((char*)".text", (unsigned char*)(Pattern.c_str()), '\xcc', Pattern.size(), (PVOID*)&MmAttachSession);
 	}
@@ -180,13 +162,15 @@ fffff805`5cbc50ff 25ff0f0000      and     eax,0FFFh
 		HYPERPLATFORM_LOG_INFO("MmAttachSession %llx", MmAttachSession);
 	}
 	else {
-		HYPERPLATFORM_LOG_ERROR("Cant Find MmAttachSession");
+		HYPERPLATFORM_LOG_WARN("Cant Find MmAttachSession");
 		return STATUS_UNSUCCESSFUL;
 	}
 
+	// 高版本定位PspDetachSession
 	const std::vector<std::string> MmDetachSessionPattern = {
 		"\x48\x89\x5C\x24\xcc\x48\x89\x74\x24\xcc\x57\x48\x83\xEC\xcc\x48\x8B\x99\xcc\xcc\xcc\xcc\x48\x8B\xF2\x48\x8D\x54\x24",
-		"\x4C\x8B\xDC\x49\x89\x5B\xcc\x49\x89\x73\xcc\x57\x48\x83\xEC\xcc\x48\x8B\x99\xcc\xcc\xcc\xcc\x0F\x57\xC0"
+		"\x4C\x8B\xDC\x49\x89\x5B\xcc\x49\x89\x73\xcc\x57\x48\x83\xEC\xcc\x48\x8B\x99\xcc\xcc\xcc\xcc\x0F\x57\xC0",
+		"\x48\x89\x5c\x24\xcc\x48\x89\x6c\x24\xcc\x48\x89\x74\x24\xcc\x57\x48\x83\xec\xcc\x65\x48\x8b\x34\x25\xcc\xcc\xcc\xcc\x48\x8b\xf9"
 	};
 	
 	for (auto Pattern : MmDetachSessionPattern) {
@@ -324,13 +308,12 @@ void SystemCallHandler(KTRAP_FRAME* TrapFrame)
 		ANSI_STRING asProcessName = {};
 		if (NT_SUCCESS(Status)) {
 			Status = RtlUnicodeStringToAnsiString(&asProcessName, usProcessName, true);
-			auto __ = [&]() {
-				if (NT_SUCCESS(Status) && usProcessName) { ExFreePool(usProcessName); }
-
+			auto __ = make_scope_exit([&]() {
+				ExFreePool(usProcessName);
 				if (NT_SUCCESS(Status)) {
 					RtlFreeAnsiString(&asProcessName);
 				}
-			};
+				});
 			if (NT_SUCCESS(Status) && _ismatch(asProcessName.Buffer, (char*)GlobalConfig.SyscallHook.path.c_str()) > 0) {
 
 				PETHREAD Thread = PsGetCurrentThread();
