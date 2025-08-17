@@ -37,8 +37,9 @@ namespace std
 
 		string& string::operator=(const string& str)
 		{
-			delete[] m_src;
-			m_src = new char[str.size()];
+			if(m_src)
+				delete[] m_src;
+			m_src = new char[str.size() + 1];
 			strcpy(m_src, str.c_str());
 			m_size = strlen(str.c_str());
 			return *this;
@@ -96,7 +97,7 @@ namespace std
 		wstring& wstring::operator=(const wstring& str)
 		{
 			delete[] m_src;
-			m_src = new wchar_t[str.size()];
+			m_src = new wchar_t[str.size() + 2];
 			wcscpy(m_src, str.c_str());
 			return *this;
 		}

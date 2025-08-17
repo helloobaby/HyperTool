@@ -106,12 +106,12 @@ namespace std
 			const size_type n = bkt_num(k);
 			if (!buckets[n]) {
 				buckets[n] = new node;
-				buckets[n]->val = val;
+				buckets[n]->val = val; 
 				buckets[n]->k = k;
 			}
 			else
 			{
-				//HYPERPLATFORM_LOG_ERROR_SAFE("Hash Collision");
+				HYPERPLATFORM_LOG_ERROR_SAFE("Hash Collision");
 			}
 
 			return buckets[n];

@@ -6,6 +6,7 @@ Copyright (c) 2021-x	 https://github.com/helloobaby/KernelModeSTL
 #include "global.hpp"
 #include "string.hpp"
 #include <initializer_list>
+#include "../common.h"
 
 /***
 
@@ -127,7 +128,7 @@ namespace std {
 			else if(new_size > size())
 			{
 				//空间扩大要引起空间的重新分配
-				
+
 				//保存原来的内存地址
 				auto tmp = new T[new_size];
 				auto new_start = tmp;
