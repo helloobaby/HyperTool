@@ -63,7 +63,7 @@ PKLDR_DATA_TABLE_ENTRY GetSystemModule(IN PUNICODE_STRING pName, IN PVOID pAddre
 NTSTATUS InitSystemVar()
 {
 	// 初始化内核基址 (KernelBase.asm)
-	KernelBase = GetKernelBase();
+	KernelBase = (ULONG_PTR)GetKernelBase2();
 	if (!KernelBase) {
 		HYPERPLATFORM_LOG_ERROR("Cant get kernel base");
 		return STATUS_UNSUCCESSFUL;

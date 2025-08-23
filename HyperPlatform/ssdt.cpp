@@ -13,7 +13,7 @@ namespace ssdt {
     bool GetKeServiceDescriptorTable(ULONG_PTR* SSDTAddress)
     {
         //x64 code
-        ULONG_PTR kernelBase = (ULONG_PTR)GetKernelBase();
+        ULONG_PTR kernelBase = (ULONG_PTR)GetKernelBase2();
         if (kernelBase == 0)
             return false;
 

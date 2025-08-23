@@ -95,6 +95,7 @@ extern "C"
 
 }
 
+void* GetKernelBase2();
 
 //
 //在vm初始化之前初始化需要的变量

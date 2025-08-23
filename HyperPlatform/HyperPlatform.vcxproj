@@ -108,6 +108,7 @@
     <ClCompile Include="kernel-hook\khook\hde\hde32.cpp" />
     <ClCompile Include="kernel-hook\khook\hde\hde64.cpp" />
     <ClCompile Include="kernel-hook\khook\khook\hk.c" />
+    <ClCompile Include="KernelBasex.cpp" />
     <ClCompile Include="log.cpp" />
     <ClCompile Include="minirtl\cmdline.c" />
     <ClCompile Include="minirtl\hextou64.c" />
